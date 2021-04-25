@@ -84,11 +84,12 @@ GlideJson Parser::parse(const char * const &cInput, const size_t &size) {
       case 15:
       case 16:
       case 17:
-        cOutput->content = cOutput->content->toNumber(cChar);
+        *cOutput = GlideJson::Number;
         if(decoded) {
           decoded->resize(decodedSize);
         }
         decoded = &(((Number *)(cOutput->content))->number);
+        *decoded = cChar;
         decodedSize = 1;
         decodedCapacity = GlideString::initialCapacity;
         decoded->resize(decodedCapacity);

@@ -446,6 +446,141 @@ auto GlideMap<T1, T2>::find(const T1 &key) -> GlideMapIterator<decltype(position
 
 // ========================================
 
+template<class T1>
+class GlideLfs;
+
+template<class T1>
+class GlideLfsNode {
+  friend class GlideLfs<T1>;
+  private:
+    GlideLfsNode *below;
+  public:
+    T1 data;
+    GlideLfsNode();
+    GlideLfsNode(const T1 &input);
+    GlideLfsNode(T1 &&input);
+    GlideLfsNode(const GlideLfsNode &input);
+    ~GlideLfsNode();
+    GlideLfsNode<T1> & operator=(const GlideLfsNode<T1> &input);
+};
+
+template<class T1>
+GlideLfsNode<T1>::GlideLfsNode() : below(NULL), data() {
+}
+
+template<class T1>
+GlideLfsNode<T1>::GlideLfsNode(const T1 &input) : below(NULL), data(input) {
+}
+
+template<class T1>
+GlideLfsNode<T1>::GlideLfsNode(T1 &&input) : below(NULL), data(std::move(input)) {
+}
+
+template<class T1>
+GlideLfsNode<T1>::GlideLfsNode(const GlideLfsNode<T1> &input) : below(NULL), data() {
+  (void)input;
+  throw GlideError("GlideLfsNode::GlideLfsNode(const GlideLfsNode<T1> &input): No copy constructor!");
+}
+
+template<class T1>
+GlideLfsNode<T1>::~GlideLfsNode() {
+}
+
+template<class T1>
+GlideLfsNode<T1> & GlideLfsNode<T1>::operator=(const GlideLfsNode<T1> &input) {
+  (void)input;
+  throw GlideError("GlideLfsNode<T1>::operator=(const GlideLfsNode<T1> &input): No assignment operator!");
+  return *this;
+}
+
+// ========================================
+
+template<class T1>
+class GlideLfs {
+  protected:
+    std::atomic<GlideLfsNode<T1> *> top;
+  public:
+    GlideLfs();
+    GlideLfs(const GlideLfs &input);
+    ~GlideLfs();
+    GlideLfs & operator=(const GlideLfs &input);
+    void push(GlideLfsNode<T1> * const &input);
+    GlideLfsNode<T1> * pop();
+    GlideLfsNode<T1> * anything();
+};
+
+template<class T1>
+GlideLfs<T1>::GlideLfs() : top(NULL) {
+}
+
+template<class T1>
+GlideLfs<T1>::GlideLfs(const GlideLfs<T1> &input) : top(NULL) {
+  (void)input;
+  throw GlideError("GlideLfs<T1>::GlideLfs(const GlideLfs<T1> &input): No copy constructor!");
+}
+
+template<class T1>
+GlideLfs<T1>::~GlideLfs() {
+  GlideLfsNode<T1> *current;
+  while((current = pop())) {
+    delete current;
+  }
+}
+
+template<class T1>
+GlideLfs<T1> & GlideLfs<T1>::operator=(const GlideLfs<T1> &input) {
+  (void)input;
+  throw GlideError("GlideLfs<T1>::operator=(const GlideLfs<T1> &input): No assignment operator!");
+  return *this;
+}
+
+template<class T1>
+void GlideLfs<T1>::push(GlideLfsNode<T1> * const &input) {
+  /*
+    - If "input->below" equals "top", set "top" to "input".
+    - If "input->below" does not equal "top", set "input->below" to "top".
+  */
+  input->below = top.load(std::memory_order_relaxed);
+  while(!top.compare_exchange_weak(input->below, input, std::memory_order_release, std::memory_order_relaxed));
+}
+
+template<class T1>
+GlideLfsNode<T1> * GlideLfs<T1>::pop() {
+  /*
+    - If "output" equals "top", set "top" to "output->below".
+    - If "output" does not equal "top", set "output" to "top".
+  */
+  GlideLfsNode<T1> *output(top.load(std::memory_order_relaxed));
+  do {
+    if(output == NULL) {
+      return output;
+    }
+  }
+  while(!top.compare_exchange_weak(output, output->below, std::memory_order_release, std::memory_order_relaxed));
+  output->below = NULL;
+  return output;
+}
+
+template<class T1>
+GlideLfsNode<T1> * GlideLfs<T1>::anything() {
+  /*
+    - If "output" equals "top", set "top" to "output->below".
+    - If "output" does not equal "top", set "output" to "top".
+  */
+  GlideLfsNode<T1> *output(top.load(std::memory_order_relaxed));
+  do {
+    if(output == NULL) {
+      output = new GlideLfsNode<T1>();
+      break;
+    }
+  }
+  while(!top.compare_exchange_weak(output, output->below, std::memory_order_release, std::memory_order_relaxed));
+  output->below = NULL;
+  return output;
+}
+
+// ========================================
+
 class GlideCheck {
   private:
     GlideCheck();
@@ -493,9 +628,9 @@ class GlideJson {
     enum Type { Error, Null, Boolean, Number, String, Array, Object };
     enum Whitespace { SpaceLf, TabLf, SpaceCrlf, TabCrlf };
   private:
+    void *cacheNode;
     GlideJsonScheme::Base *content;
     inline void initialize(const GlideJson::Type &input);
-    inline void reinitialize(const GlideJson::Type &input);
   public:
     GlideJson();
     GlideJson(const GlideJson::Type &input);
@@ -620,23 +755,6 @@ namespace GlideJsonScheme {
       virtual GlideJson::Type getType() const;
       virtual std::string toJson() const;
       virtual std::string toJson(const GlideJson::Whitespace &type, const size_t &depth) const;
-      virtual Base * clone() const;
-      virtual void selfDelete();
-      virtual Base * toError();
-      virtual Base * toNull();
-      virtual Base * toBoolean();
-      virtual Base * toNumber(const unsigned char &input);
-      virtual Base * toString();
-      virtual Base * toArray();
-      virtual Base * toObject();
-      virtual Base * quickCopy(Base * const &input);
-      virtual Base * copyToError(Error * const &input);
-      virtual Base * copyToNull(Null * const &input);
-      virtual Base * copyToBoolean(Boolean * const &input);
-      virtual Base * copyToNumber(Number * const &input);
-      virtual Base * copyToString(String * const &input);
-      virtual Base * copyToArray(Array * const &input);
-      virtual Base * copyToObject(Object * const &input);
       virtual const std::string & theError() const;
       virtual const bool & theBoolean() const;
       virtual bool & theBoolean();
@@ -647,6 +765,8 @@ namespace GlideJsonScheme {
       virtual std::vector<GlideJson> & theArray();
       virtual const GlideMap<std::string, GlideJson> & theObject() const;
       virtual GlideMap<std::string, GlideJson> & theObject();
+      virtual void dispose(void * const &input);
+      virtual void * duplicate(Base * &location) const;
   };
 
   class Error : public Base {
@@ -664,24 +784,13 @@ namespace GlideJsonScheme {
       virtual GlideJson::Type getType() const;
       virtual std::string toJson() const;
       virtual std::string toJson(const GlideJson::Whitespace &type, const size_t &depth) const;
-      virtual Error * clone() const;
-      virtual void selfDelete();
-      virtual Base * toError();
-      virtual Base * toNull();
-      virtual Base * toBoolean();
-      virtual Base * toNumber(const unsigned char &input);
-      virtual Base * toString();
-      virtual Base * toArray();
-      virtual Base * toObject();
-      virtual Base * quickCopy(Base * const &input);
-      virtual Base * copyToError(Error * const &input);
-      virtual Base * copyToNull(Null * const &input);
-      virtual Base * copyToBoolean(Boolean * const &input);
-      virtual Base * copyToNumber(Number * const &input);
-      virtual Base * copyToString(String * const &input);
-      virtual Base * copyToArray(Array * const &input);
-      virtual Base * copyToObject(Object * const &input);
       const std::string & theError() const;
+    private:
+      static GlideLfs<Error> errorCache;
+    public:
+      static GlideLfsNode<Error> * make(Base * &location);
+      virtual void dispose(void * const &input);
+      virtual void * duplicate(Base * &location) const;
   };
 
   class Null : public Base {
@@ -693,24 +802,9 @@ namespace GlideJsonScheme {
       virtual GlideJson::Type getType() const;
       virtual std::string toJson() const;
       virtual std::string toJson(const GlideJson::Whitespace &type, const size_t &depth) const;
-      virtual Null * clone() const;
-      virtual void selfDelete();
-      virtual Base * toError();
-      virtual Base * toNull();
-      virtual Base * toBoolean();
-      virtual Base * toNumber(const unsigned char &input);
-      virtual Base * toString();
-      virtual Base * toArray();
-      virtual Base * toObject();
-      virtual Base * quickCopy(Base * const &input);
-      virtual Base * copyToError(Error * const &input);
-      virtual Base * copyToNull(Null * const &input);
-      virtual Base * copyToBoolean(Boolean * const &input);
-      virtual Base * copyToNumber(Number * const &input);
-      virtual Base * copyToString(String * const &input);
-      virtual Base * copyToArray(Array * const &input);
-      virtual Base * copyToObject(Object * const &input);
       static Null * soleNull();
+      virtual void dispose(void * const &input);
+      virtual void * duplicate(Base * &location) const;
   };
 
   class Boolean : public Base {
@@ -724,43 +818,22 @@ namespace GlideJsonScheme {
       virtual GlideJson::Type getType() const;
       virtual std::string toJson() const;
       virtual std::string toJson(const GlideJson::Whitespace &type, const size_t &depth) const;
-      virtual Boolean * clone() const;
-      virtual void selfDelete();
-      virtual Base * toError();
-      virtual Base * toNull();
-      virtual Base * toBoolean();
-      virtual Base * toNumber(const unsigned char &input);
-      virtual Base * toString();
-      virtual Base * toArray();
-      virtual Base * toObject();
-      virtual Base * quickCopy(Base * const &input);
-      virtual Base * copyToError(Error * const &input);
-      virtual Base * copyToNull(Null * const &input);
-      virtual Base * copyToBoolean(Boolean * const &input);
-      virtual Base * copyToNumber(Number * const &input);
-      virtual Base * copyToString(String * const &input);
-      virtual Base * copyToArray(Array * const &input);
-      virtual Base * copyToObject(Object * const &input);
       virtual const bool & theBoolean() const;
       virtual bool & theBoolean();
+    private:
+      static GlideLfs<Boolean> booleanCache;
+    public:
+      static GlideLfsNode<Boolean> * make(Base * &location);
+      virtual void dispose(void * const &input);
+      virtual void * duplicate(Base * &location) const;
   };
 
   class Number : public Base {
     friend class Parser;
-    friend class Error;
-    friend class Null;
-    friend class Boolean;
-    friend class String;
-    friend class Array;
-    friend class Object;
     protected:
       std::string number;
     public:
       Number();
-    protected:
-      explicit Number(const unsigned char &input);
-      explicit Number(const std::string &input, const unsigned char &placeholder);
-    public:
       Number(const std::string &input);
       Number(const int &input);
       Number(const unsigned int &input);
@@ -778,26 +851,15 @@ namespace GlideJsonScheme {
       virtual GlideJson::Type getType() const;
       virtual std::string toJson() const;
       virtual std::string toJson(const GlideJson::Whitespace &type, const size_t &depth) const;
-      virtual Number * clone() const;
-      virtual void selfDelete();
-      virtual Base * toError();
-      virtual Base * toNull();
-      virtual Base * toBoolean();
-      virtual Base * toNumber(const unsigned char &input);
-      virtual Base * toString();
-      virtual Base * toArray();
-      virtual Base * toObject();
-      virtual Base * quickCopy(Base * const &input);
-      virtual Base * copyToError(Error * const &input);
-      virtual Base * copyToNull(Null * const &input);
-      virtual Base * copyToBoolean(Boolean * const &input);
-      virtual Base * copyToNumber(Number * const &input);
-      virtual Base * copyToString(String * const &input);
-      virtual Base * copyToArray(Array * const &input);
-      virtual Base * copyToObject(Object * const &input);
       virtual const std::string & theNumber() const;
       bool set(const std::string &input);
       bool set(const char * const &input, const size_t &size);
+    private:
+      static GlideLfs<Number> numberCache;
+    public:
+      static GlideLfsNode<Number> * make(Base * &location);
+      virtual void dispose(void * const &input);
+      virtual void * duplicate(Base * &location) const;
   };
 
   class String : public Base {
@@ -814,25 +876,14 @@ namespace GlideJsonScheme {
       virtual GlideJson::Type getType() const;
       virtual std::string toJson() const;
       virtual std::string toJson(const GlideJson::Whitespace &type, const size_t &depth) const;
-      virtual String * clone() const;
-      virtual void selfDelete();
-      virtual Base * toError();
-      virtual Base * toNull();
-      virtual Base * toBoolean();
-      virtual Base * toNumber(const unsigned char &input);
-      virtual Base * toString();
-      virtual Base * toArray();
-      virtual Base * toObject();
-      virtual Base * quickCopy(Base * const &input);
-      virtual Base * copyToError(Error * const &input);
-      virtual Base * copyToNull(Null * const &input);
-      virtual Base * copyToBoolean(Boolean * const &input);
-      virtual Base * copyToNumber(Number * const &input);
-      virtual Base * copyToString(String * const &input);
-      virtual Base * copyToArray(Array * const &input);
-      virtual Base * copyToObject(Object * const &input);
       virtual const std::string & theString() const;
       virtual std::string & theString();
+    private:
+      static GlideLfs<String> stringCache;
+    public:
+      static GlideLfsNode<String> * make(Base * &location);
+      virtual void dispose(void * const &input);
+      virtual void * duplicate(Base * &location) const;
   };
 
   class Array : public Base {
@@ -848,25 +899,14 @@ namespace GlideJsonScheme {
       virtual GlideJson::Type getType() const;
       virtual std::string toJson() const;
       virtual std::string toJson(const GlideJson::Whitespace &type, const size_t &depth) const;
-      virtual Array * clone() const;
-      virtual void selfDelete();
-      virtual Base * toError();
-      virtual Base * toNull();
-      virtual Base * toBoolean();
-      virtual Base * toNumber(const unsigned char &input);
-      virtual Base * toString();
-      virtual Base * toArray();
-      virtual Base * toObject();
-      virtual Base * quickCopy(Base * const &input);
-      virtual Base * copyToError(Error * const &input);
-      virtual Base * copyToNull(Null * const &input);
-      virtual Base * copyToBoolean(Boolean * const &input);
-      virtual Base * copyToNumber(Number * const &input);
-      virtual Base * copyToString(String * const &input);
-      virtual Base * copyToArray(Array * const &input);
-      virtual Base * copyToObject(Object * const &input);
       virtual const std::vector<GlideJson> & theArray() const;
       virtual std::vector<GlideJson> & theArray();
+    private:
+      static GlideLfs<Array> arrayCache;
+    public:
+      static GlideLfsNode<Array> * make(Base * &location);
+      virtual void dispose(void * const &input);
+      virtual void * duplicate(Base * &location) const;
   };
 
   class Object : public Base {
@@ -882,25 +922,14 @@ namespace GlideJsonScheme {
       virtual GlideJson::Type getType() const;
       virtual std::string toJson() const;
       virtual std::string toJson(const GlideJson::Whitespace &type, const size_t &depth) const;
-      virtual Object * clone() const;
-      virtual void selfDelete();
-      virtual Base * toError();
-      virtual Base * toNull();
-      virtual Base * toBoolean();
-      virtual Base * toNumber(const unsigned char &input);
-      virtual Base * toString();
-      virtual Base * toArray();
-      virtual Base * toObject();
-      virtual Base * quickCopy(Base * const &input);
-      virtual Base * copyToError(Error * const &input);
-      virtual Base * copyToNull(Null * const &input);
-      virtual Base * copyToBoolean(Boolean * const &input);
-      virtual Base * copyToNumber(Number * const &input);
-      virtual Base * copyToString(String * const &input);
-      virtual Base * copyToArray(Array * const &input);
-      virtual Base * copyToObject(Object * const &input);
       virtual const GlideMap<std::string, GlideJson> & theObject() const;
       virtual GlideMap<std::string, GlideJson> & theObject();
+    private:
+      static GlideLfs<Object> objectCache;
+    public:
+      static GlideLfsNode<Object> * make(Base * &location);
+      virtual void dispose(void * const &input);
+      virtual void * duplicate(Base * &location) const;
   };
 
   class ParserInitializer;
