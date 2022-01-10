@@ -95,29 +95,28 @@ inline void GlideString::append(const unsigned char &inputChar, size_t &inputSiz
 
 // ========================================
 
-inline void GlideJson::initialize(const GlideJson::Type &input) {
+inline void GlideJson::initialize(GlideJson::Type input) {
   switch(input) {
     case GlideJson::Error:
-      cacheNode = GlideJsonScheme::Error::make(content);
+      content = GlideJsonScheme::Error::make();
       break;
     case GlideJson::Null:
-      cacheNode = NULL;
       content = GlideJsonScheme::Null::soleNull();
       break;
     case GlideJson::Boolean:
-      cacheNode = GlideJsonScheme::Boolean::make(content);
+      content = GlideJsonScheme::Boolean::make();
       break;
     case GlideJson::Number:
-      cacheNode = GlideJsonScheme::Number::make(content);
+      content = GlideJsonScheme::Number::make();
       break;
     case GlideJson::String:
-      cacheNode = GlideJsonScheme::String::make(content);
+      content = GlideJsonScheme::String::make();
       break;
     case GlideJson::Array:
-      cacheNode = GlideJsonScheme::Array::make(content);
+      content = GlideJsonScheme::Array::make();
       break;
     case GlideJson::Object:
-      cacheNode = GlideJsonScheme::Object::make(content);
+      content = GlideJsonScheme::Object::make();
       break;
     default:
       abort();
@@ -125,183 +124,178 @@ inline void GlideJson::initialize(const GlideJson::Type &input) {
 }
 
 GlideJson::GlideJson() {
-  cacheNode = NULL;
   content = GlideJsonScheme::Null::soleNull();
 }
 
-GlideJson::GlideJson(const GlideJson::Type &input) {
+GlideJson::GlideJson(GlideJson::Type input) {
   initialize(input);
 }
 
 GlideJson::GlideJson(const GlideJson &input) {
-  cacheNode = input.content->duplicate(content);
+  content = input.content->duplicate();
 }
 
 GlideJson::GlideJson(GlideJson &&input) {
-  cacheNode = input.cacheNode;
   content = input.content;
-  input.cacheNode = NULL;
   input.content = GlideJsonScheme::Null::soleNull();
 }
 
-GlideJson::GlideJson(const bool &input) {
-  cacheNode = GlideJsonScheme::Boolean::make(content);
+GlideJson::GlideJson(bool input) {
+  content = GlideJsonScheme::Boolean::make();
   ((GlideJsonScheme::Boolean *)content)->boolean = input;
 }
 
-GlideJson::GlideJson(const int &input) {
-  cacheNode = GlideJsonScheme::Number::make(content);
+GlideJson::GlideJson(int input) {
+  content = GlideJsonScheme::Number::make();
   *((GlideJsonScheme::Number *)content) = input;
 }
 
-GlideJson::GlideJson(const unsigned int &input) {
-  cacheNode = GlideJsonScheme::Number::make(content);
+GlideJson::GlideJson(unsigned int input) {
+  content = GlideJsonScheme::Number::make();
   *((GlideJsonScheme::Number *)content) = input;
 }
 
-GlideJson::GlideJson(const long int &input) {
-  cacheNode = GlideJsonScheme::Number::make(content);
+GlideJson::GlideJson(long int input) {
+  content = GlideJsonScheme::Number::make();
   *((GlideJsonScheme::Number *)content) = input;
 }
 
-GlideJson::GlideJson(const unsigned long int &input) {
-  cacheNode = GlideJsonScheme::Number::make(content);
+GlideJson::GlideJson(unsigned long int input) {
+  content = GlideJsonScheme::Number::make();
   *((GlideJsonScheme::Number *)content) = input;
 }
 
-GlideJson::GlideJson(const size_t &count, const char &input) {
-  cacheNode = GlideJsonScheme::String::make(content);
+GlideJson::GlideJson(size_t count, char input) {
+  content = GlideJsonScheme::String::make();
   ((GlideJsonScheme::String *)content)->string.assign(count, input);
 }
 
-GlideJson::GlideJson(const char * const &input) {
-  cacheNode = GlideJsonScheme::String::make(content);
+GlideJson::GlideJson(const char *input) {
+  content = GlideJsonScheme::String::make();
   ((GlideJsonScheme::String *)content)->string = input;
 }
 
-GlideJson::GlideJson(const char * const &input, const size_t &size) {
-  cacheNode = GlideJsonScheme::String::make(content);
+GlideJson::GlideJson(const char *input, size_t size) {
+  content = GlideJsonScheme::String::make();
   ((GlideJsonScheme::String *)content)->string.assign(input, size);
 }
 
 GlideJson::GlideJson(const std::string &input) {
-  cacheNode = GlideJsonScheme::String::make(content);
+  content = GlideJsonScheme::String::make();
   ((GlideJsonScheme::String *)content)->string = input;
 }
 
 GlideJson::GlideJson(std::string &&input) {
-  cacheNode = GlideJsonScheme::String::make(content);
+  content = GlideJsonScheme::String::make();
   ((GlideJsonScheme::String *)content)->string = std::move(input);
 }
 
 GlideJson::~GlideJson() {
-  content->dispose(cacheNode);
+  content->dispose();
 }
 
-GlideJson & GlideJson::operator=(const GlideJson::Type &input) {
-  content->dispose(cacheNode);
+GlideJson & GlideJson::operator=(GlideJson::Type input) {
+  content->dispose();
   initialize(input);
   return *this;
 }
 
 GlideJson & GlideJson::operator=(const GlideJson &input) {
-  content->dispose(cacheNode);
-  cacheNode = input.content->duplicate(content);
+  content->dispose();
+  content = input.content->duplicate();
   return *this;
 }
 
 GlideJson & GlideJson::operator=(GlideJson &&input) {
-  content->dispose(cacheNode);
-  cacheNode = input.cacheNode;
+  content->dispose();
   content = input.content;
-  input.cacheNode = NULL;
   input.content = GlideJsonScheme::Null::soleNull();
   return *this;
 }
 
-GlideJson & GlideJson::operator=(const bool &input) {
-  content->dispose(cacheNode);
-  cacheNode = GlideJsonScheme::Boolean::make(content);
+GlideJson & GlideJson::operator=(bool input) {
+  content->dispose();
+  content = GlideJsonScheme::Boolean::make();
   ((GlideJsonScheme::Boolean *)content)->boolean = input;
   return *this;
 }
 
-GlideJson & GlideJson::operator=(const int &input) {
-  content->dispose(cacheNode);
-  cacheNode = GlideJsonScheme::Number::make(content);
+GlideJson & GlideJson::operator=(int input) {
+  content->dispose();
+  content = GlideJsonScheme::Number::make();
   *((GlideJsonScheme::Number *)content) = input;
   return *this;
 }
 
-GlideJson & GlideJson::operator=(const unsigned int &input) {
-  content->dispose(cacheNode);
-  cacheNode = GlideJsonScheme::Number::make(content);
+GlideJson & GlideJson::operator=(unsigned int input) {
+  content->dispose();
+  content = GlideJsonScheme::Number::make();
   *((GlideJsonScheme::Number *)content) = input;
   return *this;
 }
 
-GlideJson & GlideJson::operator=(const long int &input) {
-  content->dispose(cacheNode);
-  cacheNode = GlideJsonScheme::Number::make(content);
+GlideJson & GlideJson::operator=(long int input) {
+  content->dispose();
+  content = GlideJsonScheme::Number::make();
   *((GlideJsonScheme::Number *)content) = input;
   return *this;
 }
 
-GlideJson & GlideJson::operator=(const unsigned long int &input) {
-  content->dispose(cacheNode);
-  cacheNode = GlideJsonScheme::Number::make(content);
+GlideJson & GlideJson::operator=(unsigned long int input) {
+  content->dispose();
+  content = GlideJsonScheme::Number::make();
   *((GlideJsonScheme::Number *)content) = input;
   return *this;
 }
 
-bool GlideJson::setNumber(const char * const &input, const size_t &size) {
-  content->dispose(cacheNode);
-  cacheNode = GlideJsonScheme::Number::make(content);
+bool GlideJson::setNumber(const char *input, size_t size) {
+  content->dispose();
+  content = GlideJsonScheme::Number::make();
   return ((GlideJsonScheme::Number *)content)->set(input, size);
 }
 
 bool GlideJson::setNumber(const std::string &input) {
-  content->dispose(cacheNode);
-  cacheNode = GlideJsonScheme::Number::make(content);
+  content->dispose();
+  content = GlideJsonScheme::Number::make();
   return ((GlideJsonScheme::Number *)content)->set(input);
 }
 
-GlideJson & GlideJson::setString(const size_t &count, const char &input) {
-  content->dispose(cacheNode);
-  cacheNode = GlideJsonScheme::String::make(content);
+GlideJson & GlideJson::setString(size_t count, char input) {
+  content->dispose();
+  content = GlideJsonScheme::String::make();
   ((GlideJsonScheme::String *)content)->string.assign(count, input);
   return *this;
 }
 
-GlideJson & GlideJson::operator=(const char * const &input) {
-  content->dispose(cacheNode);
-  cacheNode = GlideJsonScheme::String::make(content);
+GlideJson & GlideJson::operator=(const char *input) {
+  content->dispose();
+  content = GlideJsonScheme::String::make();
   ((GlideJsonScheme::String *)content)->string = input;
   return *this;
 }
 
-GlideJson & GlideJson::setString(const char * const &input, const size_t &size) {
-  content->dispose(cacheNode);
-  cacheNode = GlideJsonScheme::String::make(content);
+GlideJson & GlideJson::setString(const char *input, size_t size) {
+  content->dispose();
+  content = GlideJsonScheme::String::make();
   ((GlideJsonScheme::String *)content)->string.assign(input, size);
   return *this;
 }
 
 GlideJson & GlideJson::operator=(const std::string &input) {
-  content->dispose(cacheNode);
-  cacheNode = GlideJsonScheme::String::make(content);
+  content->dispose();
+  content = GlideJsonScheme::String::make();
   ((GlideJsonScheme::String *)content)->string = input;
   return *this;
 }
 
 GlideJson & GlideJson::operator=(std::string &&input) {
-  content->dispose(cacheNode);
-  cacheNode = GlideJsonScheme::String::make(content);
+  content->dispose();
+  content = GlideJsonScheme::String::make();
   ((GlideJsonScheme::String *)content)->string = std::move(input);
   return *this;
 }
 
-std::string GlideJson::toJson(const GlideJson::Whitespace &type, const size_t &depth) const {
+std::string GlideJson::toJson(GlideJson::Whitespace type, size_t depth) const {
   return content->toJson(type, depth);
 }
 
@@ -369,7 +363,7 @@ std::string GlideJson::toJson() const {
   return content->toJson();
 }
 
-std::string GlideJson::toJson(const GlideJson::Whitespace &type) const {
+std::string GlideJson::toJson(GlideJson::Whitespace type) const {
   return content->toJson(type, 0);
 }
 
@@ -429,7 +423,7 @@ GlideMap<std::string, GlideJson> & GlideJson::object() {
   return content->theObject();
 }
 
-unsigned char GlideJson::getHex(const unsigned char &input) {
+unsigned char GlideJson::getHex(unsigned char input) {
   static const GlideJsonScheme::EncoderInitializer &encoderInitializer(GlideJsonScheme::EncoderInitializer::initializer());
   (void)encoderInitializer;
   //
@@ -440,7 +434,7 @@ GlideJson GlideJson::parse(const std::string &input) {
   return GlideJsonScheme::Parser::parse(input);
 }
 
-GlideJson GlideJson::parse(const char * const &input, const size_t &size) {
+GlideJson GlideJson::parse(const char *input, size_t size) {
   return GlideJsonScheme::Parser::parse(input, size);
 }
 
@@ -448,7 +442,7 @@ std::string GlideJson::encodeString(const std::string &input) {
   return GlideJsonScheme::Encoder::encode(input);
 }
 
-std::string GlideJson::encodeString(const char * const &input, const size_t &size) {
+std::string GlideJson::encodeString(const char *input, size_t size) {
   return GlideJsonScheme::Encoder::encode(input, size);
 }
 
@@ -456,7 +450,7 @@ std::string GlideJson::base64Encode(const std::string &input) {
   return GlideJsonScheme::Encoder::base64Encode(input);
 }
 
-std::string GlideJson::base64Encode(const char * const &input, const size_t &size) {
+std::string GlideJson::base64Encode(const char *input, size_t size) {
   return GlideJsonScheme::Encoder::base64Encode(input, size);
 }
 
@@ -464,7 +458,7 @@ std::string GlideJson::base64Decode(const std::string &input) {
   return GlideJsonScheme::Encoder::base64Decode(input);
 }
 
-std::string GlideJson::base64Decode(const char * const &input, const size_t &size) {
+std::string GlideJson::base64Decode(const char *input, size_t size) {
   return GlideJsonScheme::Encoder::base64Decode(input, size);
 }
 
@@ -477,7 +471,7 @@ namespace GlideJsonScheme {
   unsigned char Encoder::b64eMap[] = {0};
   unsigned char Encoder::b64dMap[GLIDE_BYTE_SIZE] = {0};
 
-  void Encoder::setEscapable(const size_t &state) {
+  void Encoder::setEscapable(size_t state) {
     // Control characters:
     unsigned char i(0);
     do {
@@ -494,7 +488,7 @@ namespace GlideJsonScheme {
     stateMap['\t' + GLIDE_BYTE_SIZE * state] = 8;
   }
 
-  void Encoder::copyTransitions(const size_t &from, const size_t &to) {
+  void Encoder::copyTransitions(size_t from, size_t to) {
     size_t i(0);
     do {
       stateMap[i + GLIDE_BYTE_SIZE * to] = stateMap[i + GLIDE_BYTE_SIZE * from];
@@ -754,10 +748,10 @@ namespace GlideJsonScheme {
 
   // ========================================
 
-  Base::Base() {
+  Base::Base() : GlideLfsNode() {
   }
 
-  Base::Base(const Base &input) {
+  Base::Base(const Base &input) : GlideLfsNode() {
     (void)input;
   }
 
@@ -779,10 +773,10 @@ namespace GlideJsonScheme {
     return std::string();
   }
 
-  std::string Base::toJson(const GlideJson::Whitespace &type, const size_t &depth) const {
+  std::string Base::toJson(GlideJson::Whitespace type, size_t depth) const {
     (void)type;
     (void)depth;
-    throw GlideError("GlideJsonScheme::Base::toJson(): This is an abstract class!");
+    throw GlideError("GlideJsonScheme::Base::toJson(GlideJson::Whitespace type, size_t depth): This is an abstract class!");
     return std::string();
   }
 
@@ -846,13 +840,11 @@ namespace GlideJsonScheme {
     return nothing;
   }
 
-  void Base::dispose(void * const &input) {
-    (void)input;
-    throw GlideError("GlideJsonScheme::Base::dispose(void * const &input): This is an abstract class!");
+  void Base::dispose() {
+    throw GlideError("GlideJsonScheme::Base::dispose(void *input): This is an abstract class!");
   }
 
-  void * Base::duplicate(Base * &location) const {
-    (void)location;
+  Base * Base::duplicate() const {
     throw GlideError("GlideJsonScheme::Base::duplicate(Base * &location): This is an abstract class!");
   }
 
@@ -891,7 +883,7 @@ namespace GlideJsonScheme {
     return Encoder::encode(error);
   }
 
-  std::string Error::toJson(const GlideJson::Whitespace &type, const size_t &depth) const {
+  std::string Error::toJson(GlideJson::Whitespace type, size_t depth) const {
     (void)type;
     (void)depth;
     return Encoder::encode(error);
@@ -901,23 +893,27 @@ namespace GlideJsonScheme {
     return error;
   }
 
-  GlideLfs<Error> Error::errorCache;
+  GlideLfs Error::errorCache;
 
-  GlideLfsNode<Error> * Error::make(Base * &location) {
-    GlideLfsNode<Error> *output(errorCache.anything());
-    location = &(output->data);
+  Error * Error::make() {
+    Error *output((Error *)(errorCache.pop()));
+    if(output == NULL) {
+      output = new Error();
+    }
     return output;
   }
 
-  void Error::dispose(void * const &input) {
+  void Error::dispose() {
     error.clear();
-    errorCache.push((GlideLfsNode<Error> *)input);
+    errorCache.push(this);
   }
 
-  void * Error::duplicate(Base * &location) const {
-    GlideLfsNode<Error> *output(errorCache.anything());
-    output->data.error = error;
-    location = &(output->data);
+  Error * Error::duplicate() const {
+    Error *output((Error *)(errorCache.pop()));
+    if(output == NULL) {
+      output = new Error();
+    }
+    output->error = error;
     return output;
   }
 
@@ -947,7 +943,7 @@ namespace GlideJsonScheme {
     return nullString;
   }
 
-  std::string Null::toJson(const GlideJson::Whitespace &type, const size_t &depth) const {
+  std::string Null::toJson(GlideJson::Whitespace type, size_t depth) const {
     static const std::string nullString("null");
     (void)type;
     (void)depth;
@@ -959,13 +955,11 @@ namespace GlideJsonScheme {
     return &theOnlyNull;
   }
 
-  void Null::dispose(void * const &input) {
-    (void)input;
+  void Null::dispose() {
   }
 
-  void * Null::duplicate(Base * &location) const {
-    location = soleNull();
-    return NULL;
+  Null * Null::duplicate() const {
+    return soleNull();
   }
 
   // ========================================
@@ -973,7 +967,7 @@ namespace GlideJsonScheme {
   Boolean::Boolean() : Base(), boolean(false) {
   }
 
-  Boolean::Boolean(const bool &input) : Base(), boolean(input) {
+  Boolean::Boolean(bool input) : Base(), boolean(input) {
   }
 
   Boolean::Boolean(const Boolean &input) : Base(), boolean(input.boolean) {
@@ -997,7 +991,7 @@ namespace GlideJsonScheme {
     return (boolean ? trueString : falseString);
   }
 
-  std::string Boolean::toJson(const GlideJson::Whitespace &type, const size_t &depth) const {
+  std::string Boolean::toJson(GlideJson::Whitespace type, size_t depth) const {
     static const std::string falseString("false");
     static const std::string trueString("true");
     (void)type;
@@ -1013,23 +1007,27 @@ namespace GlideJsonScheme {
     return boolean;
   }
 
-  GlideLfs<Boolean> Boolean::booleanCache;
+  GlideLfs Boolean::booleanCache;
 
-  GlideLfsNode<Boolean> * Boolean::make(Base * &location) {
-    GlideLfsNode<Boolean> *output(booleanCache.anything());
-    location = &(output->data);
+  Boolean * Boolean::make() {
+    Boolean *output((Boolean *)(booleanCache.pop()));
+    if(output == NULL) {
+      output = new Boolean();
+    }
     return output;
   }
 
-  void Boolean::dispose(void * const &input) {
+  void Boolean::dispose() {
     boolean = false;
-    booleanCache.push((GlideLfsNode<Boolean> *)input);
+    booleanCache.push(this);
   }
 
-  void * Boolean::duplicate(Base * &location) const {
-    GlideLfsNode<Boolean> *output(booleanCache.anything());
-    output->data.boolean = boolean;
-    location = &(output->data);
+  Boolean * Boolean::duplicate() const {
+    Boolean *output((Boolean *)(booleanCache.pop()));
+    if(output == NULL) {
+      output = new Boolean();
+    }
+    output->boolean = boolean;
     return output;
   }
 
@@ -1048,16 +1046,16 @@ namespace GlideJsonScheme {
     }
   }
 
-  Number::Number(const int &input) : Base(), number(std::to_string(input)) {
+  Number::Number(int input) : Base(), number(std::to_string(input)) {
   }
 
-  Number::Number(const unsigned int &input) : Base(), number(std::to_string(input)) {
+  Number::Number(unsigned int input) : Base(), number(std::to_string(input)) {
   }
 
-  Number::Number(const long int &input) : Base(), number(std::to_string(input)) {
+  Number::Number(long int input) : Base(), number(std::to_string(input)) {
   }
 
-  Number::Number(const unsigned long int &input) : Base(), number(std::to_string(input)) {
+  Number::Number(unsigned long int input) : Base(), number(std::to_string(input)) {
   }
 
   Number::Number(const Number &input) : Base(), number(input.number) {
@@ -1069,22 +1067,22 @@ namespace GlideJsonScheme {
   Number::~Number() {
   }
 
-  Number & Number::operator=(const int &input) {
+  Number & Number::operator=(int input) {
     number = std::to_string(input);
     return *this;
   }
 
-  Number & Number::operator=(const unsigned int &input) {
+  Number & Number::operator=(unsigned int input) {
     number = std::to_string(input);
     return *this;
   }
 
-  Number & Number::operator=(const long int &input) {
+  Number & Number::operator=(long int input) {
     number = std::to_string(input);
     return *this;
   }
 
-  Number & Number::operator=(const unsigned long int &input) {
+  Number & Number::operator=(unsigned long int input) {
     number = std::to_string(input);
     return *this;
   }
@@ -1107,7 +1105,7 @@ namespace GlideJsonScheme {
     return number;
   }
 
-  std::string Number::toJson(const GlideJson::Whitespace &type, const size_t &depth) const {
+  std::string Number::toJson(GlideJson::Whitespace type, size_t depth) const {
     (void)type;
     (void)depth;
     return number;
@@ -1126,7 +1124,7 @@ namespace GlideJsonScheme {
     return output;
   }
 
-  bool Number::set(const char * const &input, const size_t &size) {
+  bool Number::set(const char *input, size_t size) {
     GlideJson parsed(GlideJson::parse(input, size));
     bool output(parsed.content->getType() == GlideJson::Number);
     if(output) {
@@ -1135,23 +1133,27 @@ namespace GlideJsonScheme {
     return output;
   }
 
-  GlideLfs<Number> Number::numberCache;
+  GlideLfs Number::numberCache;
 
-  GlideLfsNode<Number> * Number::make(Base * &location) {
-    GlideLfsNode<Number> *output(numberCache.anything());
-    location = &(output->data);
+  Number * Number::make() {
+    Number *output((Number *)(numberCache.pop()));
+    if(output == NULL) {
+      output = new Number();
+    }
     return output;
   }
 
-  void Number::dispose(void * const &input) {
+  void Number::dispose() {
     number = '0';
-    numberCache.push((GlideLfsNode<Number> *)input);
+    numberCache.push(this);
   }
 
-  void * Number::duplicate(Base * &location) const {
-    GlideLfsNode<Number> *output(numberCache.anything());
-    output->data.number = number;
-    location = &(output->data);
+  Number * Number::duplicate() const {
+    Number *output((Number *)(numberCache.pop()));
+    if(output == NULL) {
+      output = new Number();
+    }
+    output->number = number;
     return output;
   }
 
@@ -1193,7 +1195,7 @@ namespace GlideJsonScheme {
     return Encoder::encode(string);
   }
 
-  std::string String::toJson(const GlideJson::Whitespace &type, const size_t &depth) const {
+  std::string String::toJson(GlideJson::Whitespace type, size_t depth) const {
     (void)type;
     (void)depth;
     return Encoder::encode(string);
@@ -1207,23 +1209,27 @@ namespace GlideJsonScheme {
     return string;
   }
 
-  GlideLfs<String> String::stringCache;
+  GlideLfs String::stringCache;
 
-  GlideLfsNode<String> * String::make(Base * &location) {
-    GlideLfsNode<String> *output(stringCache.anything());
-    location = &(output->data);
+  String * String::make() {
+    String *output((String *)(stringCache.pop()));
+    if(output == NULL) {
+      output = new String();
+    }
     return output;
   }
 
-  void String::dispose(void * const &input) {
+  void String::dispose() {
     string.clear();
-    stringCache.push((GlideLfsNode<String> *)input);
+    stringCache.push(this);
   }
 
-  void * String::duplicate(Base * &location) const {
-    GlideLfsNode<String> *output(stringCache.anything());
-    output->data.string = string;
-    location = &(output->data);
+  String * String::duplicate() const {
+    String *output((String *)(stringCache.pop()));
+    if(output == NULL) {
+      output = new String();
+    }
+    output->string = string;
     return output;
   }
 
@@ -1277,23 +1283,27 @@ namespace GlideJsonScheme {
     return array;
   }
 
-  GlideLfs<Array> Array::arrayCache;
+  GlideLfs Array::arrayCache;
 
-  GlideLfsNode<Array> * Array::make(Base * &location) {
-    GlideLfsNode<Array> *output(arrayCache.anything());
-    location = &(output->data);
+  Array * Array::make() {
+    Array *output((Array *)(arrayCache.pop()));
+    if(output == NULL) {
+      output = new Array();
+    }
     return output;
   }
 
-  void Array::dispose(void * const &input) {
+  void Array::dispose() {
     array.clear();
-    arrayCache.push((GlideLfsNode<Array> *)input);
+    arrayCache.push(this);
   }
 
-  void * Array::duplicate(Base * &location) const {
-    GlideLfsNode<Array> *output(arrayCache.anything());
-    output->data.array = array;
-    location = &(output->data);
+  Array * Array::duplicate() const {
+    Array *output((Array *)(arrayCache.pop()));
+    if(output == NULL) {
+      output = new Array();
+    }
+    output->array = array;
     return output;
   }
 
@@ -1347,23 +1357,27 @@ namespace GlideJsonScheme {
     return object;
   }
 
-  GlideLfs<Object> Object::objectCache;
+  GlideLfs Object::objectCache;
 
-  GlideLfsNode<Object> * Object::make(Base * &location) {
-    GlideLfsNode<Object> *output(objectCache.anything());
-    location = &(output->data);
+  Object * Object::make() {
+    Object *output((Object *)(objectCache.pop()));
+    if(output == NULL) {
+      output = new Object();
+    }
     return output;
   }
 
-  void Object::dispose(void * const &input) {
+  void Object::dispose() {
     object.clear();
-    objectCache.push((GlideLfsNode<Object> *)input);
+    objectCache.push(this);
   }
 
-  void * Object::duplicate(Base * &location) const {
-    GlideLfsNode<Object> *output(objectCache.anything());
-    output->data.object = object;
-    location = &(output->data);
+  Object * Object::duplicate() const {
+    Object *output((Object *)(objectCache.pop()));
+    if(output == NULL) {
+      output = new Object();
+    }
+    output->object = object;
     return output;
   }
 

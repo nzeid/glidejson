@@ -19,7 +19,7 @@
 GlideJson Parser::parse(const std::string &input) {
 #endif
 #ifdef GLIDE_JSON_PART_CSTRING
-GlideJson Parser::parse(const char * const &cInput, const size_t &size) {
+GlideJson Parser::parse(const char *cInput, size_t size) {
 #endif
   static const ParserInitializer parserInitializer;
   static const GlideJson gNull;

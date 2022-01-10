@@ -45,7 +45,7 @@
 std::string Encoder::encode(const std::string &input) {
 #endif
 #ifdef GLIDE_JSON_PART_CSTRING
-std::string Encoder::encode(const char * const &cInput, const size_t &size) {
+std::string Encoder::encode(const char *cInput, size_t size) {
 #endif
   static const EncoderInitializer &encoderInitializer(EncoderInitializer::initializer());
   (void)encoderInitializer;
@@ -171,7 +171,7 @@ std::string Encoder::encode(const char * const &cInput, const size_t &size) {
 std::string Encoder::base64Encode(const std::string &input) {
 #endif
 #ifdef GLIDE_JSON_PART_CSTRING
-std::string Encoder::base64Encode(const char * const &cInput, const size_t &length) {
+std::string Encoder::base64Encode(const char *cInput, size_t length) {
 #endif
   static const EncoderInitializer &encoderInitializer(EncoderInitializer::initializer());
   (void)encoderInitializer;
@@ -220,7 +220,7 @@ std::string Encoder::base64Encode(const char * const &cInput, const size_t &leng
 std::string Encoder::base64Decode(const std::string &input) {
 #endif
 #ifdef GLIDE_JSON_PART_CSTRING
-std::string Encoder::base64Decode(const char * const &cInput, const size_t &length) {
+std::string Encoder::base64Decode(const char *cInput, size_t length) {
 #endif
   static const EncoderInitializer &encoderInitializer(EncoderInitializer::initializer());
   (void)encoderInitializer;

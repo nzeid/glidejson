@@ -19,7 +19,7 @@
 std::string Array::toJson() const {
 #endif
 #ifdef GLIDE_JSON_WHITESPACE
-std::string Array::toJson(const GlideJson::Whitespace &type, const size_t &depth) const {
+std::string Array::toJson(GlideJson::Whitespace type, size_t depth) const {
   std::string indent;
   size_t width;
   std::string newLine;
