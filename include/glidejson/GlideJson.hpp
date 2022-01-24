@@ -18,12 +18,21 @@
 #ifndef GLIDE_JSON_HPP
 #define GLIDE_JSON_HPP
 
+extern "C" {
+  #include "siphash.h"
+  #include "halfsiphash.h"
+}
+
 #include <stdexcept>
 #include <atomic>
+#include <random>
+#include <unordered_map>
+#include <list>
 #include <map>
 #include <string>
 #include <vector>
 
+#define SIP_HASH_SECRET_SIZE 16
 #define GLIDE_BYTE_SIZE 256
 #define GLIDE_BYTE_WIDTH 8
 #define GLIDE_BYTE_HALF_WIDTH 4
@@ -131,317 +140,348 @@ template<class T1>
 class GlideSortItem : public GlideItem<T1> {
   using GlideItem<T1>::GlideItem;
   public:
+    bool operator==(const GlideSortItem &input) const;
     bool operator<(const GlideSortItem &input) const;
+    bool operator>(const GlideSortItem &input) const;
 };
+
+template<class T1>
+bool GlideSortItem<T1>::operator==(const GlideSortItem<T1> &input) const {
+  return *(GlideItem<T1>::item) == *(input.item);
+}
 
 template<class T1>
 bool GlideSortItem<T1>::operator<(const GlideSortItem<T1> &input) const {
   return *(GlideItem<T1>::item) < *(input.item);
 }
 
+template<class T1>
+bool GlideSortItem<T1>::operator>(const GlideSortItem<T1> &input) const {
+  return *(GlideItem<T1>::item) > *(input.item);
+}
+
 // ========================================
 
-template<class T1>
-class GlideMapIterator {
-  private:
-    T1 iterator;
-  public:
-    GlideMapIterator();
-    GlideMapIterator(const T1 &input);
-    GlideMapIterator(const GlideMapIterator &input);
-    ~GlideMapIterator();
-    GlideMapIterator & operator=(const GlideMapIterator &input);
-    bool operator==(const GlideMapIterator &input) const;
-    bool operator!=(const GlideMapIterator &input) const;
-    void next();
-    void previous();
-    const size_t & index() const;
-    auto key() const -> decltype(iterator->second.first.value());
-    auto value() const -> decltype(iterator->second.second.value());
+struct GlideErrorHasher {
+  size_t operator()(const GlideSortItem<std::string> &key) const;
 };
 
-template<class T1>
-GlideMapIterator<T1>::GlideMapIterator() : iterator() {
-  throw GlideError("GlideMapIterator<T1>::GlideMapIterator(): No default constructor!");
+class Glide32Hasher {
+  protected:
+    std::vector<unsigned char> secret;
+  public:
+    Glide32Hasher();
+    Glide32Hasher(const Glide32Hasher &input);
+    Glide32Hasher(Glide32Hasher &&input);
+    ~Glide32Hasher();
+    Glide32Hasher & operator=(const Glide32Hasher &input);
+    Glide32Hasher & operator=(Glide32Hasher &&input);
+    size_t operator()(const GlideSortItem<std::string> &key) const;
+};
+
+class Glide64Hasher : public Glide32Hasher {
+  using Glide32Hasher::Glide32Hasher;
+  public:
+    size_t operator()(const GlideSortItem<std::string> &key) const;
+};
+
+typedef std::conditional<
+  sizeof(size_t) == 8,
+  Glide64Hasher,
+  std::conditional<
+    sizeof(size_t) == 4,
+    Glide32Hasher,
+    GlideErrorHasher
+  >::type
+>::type GlideHasher;
+
+// ========================================
+
+template<class T>
+class GlideHashMapIterator {
+  private:
+    T iterator;
+  public:
+    GlideHashMapIterator();
+    GlideHashMapIterator(const T &input);
+    GlideHashMapIterator(const GlideHashMapIterator &input);
+    ~GlideHashMapIterator();
+    GlideHashMapIterator & operator=(const GlideHashMapIterator &input);
+    bool operator==(const GlideHashMapIterator &input) const;
+    bool operator!=(const GlideHashMapIterator &input) const;
+    void next();
+    void previous();
+    auto key() const -> decltype(iterator->first.value());
+    auto value() const -> decltype(iterator->second.value());
+};
+
+template<class T>
+GlideHashMapIterator<T>::GlideHashMapIterator() : iterator() {
 }
 
-template<class T1>
-GlideMapIterator<T1>::GlideMapIterator(const T1 &input) : iterator(input) {
+template<class T>
+GlideHashMapIterator<T>::GlideHashMapIterator(const T &input) : iterator(input) {
 }
 
-template<class T1>
-GlideMapIterator<T1>::GlideMapIterator(const GlideMapIterator<T1> &input) : iterator(input.iterator) {
+template<class T>
+GlideHashMapIterator<T>::GlideHashMapIterator(const GlideHashMapIterator<T> &input) : iterator(input.iterator) {
 }
 
-template<class T1>
-GlideMapIterator<T1>::~GlideMapIterator() {
+template<class T>
+GlideHashMapIterator<T>::~GlideHashMapIterator() {
 }
 
-template<class T1>
-GlideMapIterator<T1> & GlideMapIterator<T1>::operator=(const GlideMapIterator<T1> &input) {
+template<class T>
+GlideHashMapIterator<T> & GlideHashMapIterator<T>::operator=(const GlideHashMapIterator<T> &input) {
   iterator = input.iterator;
   return *this;
 }
 
-template<class T1>
-bool GlideMapIterator<T1>::operator==(const GlideMapIterator<T1> &input) const {
+template<class T>
+bool GlideHashMapIterator<T>::operator==(const GlideHashMapIterator<T> &input) const {
   return iterator == input.iterator;
 }
 
-template<class T1>
-bool GlideMapIterator<T1>::operator!=(const GlideMapIterator<T1> &input) const {
+template<class T>
+bool GlideHashMapIterator<T>::operator!=(const GlideHashMapIterator<T> &input) const {
   return iterator != input.iterator;
 }
 
-template<class T1>
-void GlideMapIterator<T1>::next() {
+template<class T>
+void GlideHashMapIterator<T>::next() {
   ++iterator;
 }
 
-template<class T1>
-void GlideMapIterator<T1>::previous() {
+template<class T>
+void GlideHashMapIterator<T>::previous() {
   --iterator;
 }
 
-template<class T1>
-const size_t & GlideMapIterator<T1>::index() const {
-  return iterator->first;
+template<class T>
+auto GlideHashMapIterator<T>::key() const -> decltype(iterator->first.value()) {
+  return iterator->first.value();
 }
 
-template<class T1>
-auto GlideMapIterator<T1>::key() const -> decltype(iterator->second.first.value()) {
-  return iterator->second.first.value();
-}
-
-template<class T1>
-auto GlideMapIterator<T1>::value() const -> decltype(iterator->second.second.value()) {
-  return iterator->second.second.value();
+template<class T>
+auto GlideHashMapIterator<T>::value() const -> decltype(iterator->second.value()) {
+  return iterator->second.value();
 }
 
 // ========================================
 
-template<class T1, class T2>
-class GlideMap {
+template<class T>
+class GlideHashMap {
   public:
-    typedef std::map< GlideSortItem<T1>, std::pair< size_t, GlideItem<T2> > > KeyMap;
-    typedef std::map< size_t, std::pair< GlideSortItem<T1>, GlideItem<T2> > > PositionMap;
+    typedef GlideSortItem<std::string> Key;
+    typedef std::pair< Key, GlideItem<T> > KeyPair;
   private:
-    KeyMap keyMap;
-    PositionMap positionMap;
-    size_t counter;
+    std::list<KeyPair> positionList;
   public:
-    GlideMap();
-    GlideMap(const GlideMap &input);
-    GlideMap(GlideMap &&input);
-    ~GlideMap();
-    GlideMap & operator=(const GlideMap &input);
-    GlideMap & operator=(GlideMap &&input);
+    typedef std::pair<bool, decltype(positionList.begin())> Position;
+    typedef std::pair< Position, GlideItem<T> > ValuePair;
+    typedef std::unordered_map<Key, ValuePair, GlideHasher> HashMap;
+  private:
+    HashMap hashMap;
+    inline void reindex();
+    static bool lessThan(const KeyPair &x, const KeyPair &y);
+    static bool greaterThan(const KeyPair &x, const KeyPair &y);
+  public:
+    GlideHashMap();
+    GlideHashMap(const GlideHashMap &input);
+    GlideHashMap(GlideHashMap &&input);
+    ~GlideHashMap();
+    GlideHashMap & operator=(const GlideHashMap &input);
+    GlideHashMap & operator=(GlideHashMap &&input);
     size_t size() const;
-    size_t count(const T1 &key) const;
+    size_t count(const std::string &key) const;
     bool empty() const;
-    const T2 & at(const T1 &key) const;
-    T2 & at(const T1 &key);
-    T2 & operator[](const T1 &key);
-    T2 & operator[](T1 &&key);
-    size_t erase(const T1 &key);
+    const T & at(const std::string &key) const;
+    T & at(const std::string &key);
+    T & operator[](const std::string &key);
+    T & operator[](std::string &&key);
+    size_t erase(const std::string &key);
     void clear();
     void sort();
     void rsort();
-    auto begin() const -> GlideMapIterator<decltype(positionMap.begin())>;
-    auto end() const -> GlideMapIterator<decltype(positionMap.end())>;
-    auto begin() -> GlideMapIterator<decltype(positionMap.begin())>;
-    auto end() -> GlideMapIterator<decltype(positionMap.end())>;
-    auto rbegin() const -> GlideMapIterator<decltype(positionMap.rbegin())>;
-    auto rend() const -> GlideMapIterator<decltype(positionMap.rend())>;
-    auto rbegin() -> GlideMapIterator<decltype(positionMap.rbegin())>;
-    auto rend() -> GlideMapIterator<decltype(positionMap.rend())>;
-    auto find(const T1 &key) const -> GlideMapIterator<decltype(positionMap.find(0))>;
-    auto find(const T1 &key) -> GlideMapIterator<decltype(positionMap.find(0))>;
+    auto begin() const -> GlideHashMapIterator<decltype(positionList.begin())>;
+    auto end() const -> GlideHashMapIterator<decltype(positionList.end())>;
+    auto begin() -> GlideHashMapIterator<decltype(positionList.begin())>;
+    auto end() -> GlideHashMapIterator<decltype(positionList.end())>;
+    auto rbegin() const -> GlideHashMapIterator<decltype(positionList.rbegin())>;
+    auto rend() const -> GlideHashMapIterator<decltype(positionList.rend())>;
+    auto rbegin() -> GlideHashMapIterator<decltype(positionList.rbegin())>;
+    auto rend() -> GlideHashMapIterator<decltype(positionList.rend())>;
 };
 
-template<class T1, class T2>
-GlideMap<T1, T2>::GlideMap() : keyMap(), positionMap(), counter(0) {
+template<class T>
+inline void GlideHashMap<T>::reindex() {
+  auto i(positionList.begin());
+  auto iEnd(positionList.end());
+  while(i != iEnd) {
+    hashMap[i->first.value()].first.second = i++;
+  }
 }
 
-template<class T1, class T2>
-GlideMap<T1, T2>::GlideMap(const GlideMap<T1, T2> &input) : keyMap(input.keyMap), positionMap(input.positionMap), counter(input.counter) {
+template<class T>
+bool GlideHashMap<T>::lessThan(const KeyPair &x, const KeyPair &y) {
+  return x.first < y.first;
 }
 
-template<class T1, class T2>
-GlideMap<T1, T2>::GlideMap(GlideMap<T1, T2> &&input) : keyMap(std::move(input.keyMap)), positionMap(std::move(input.positionMap)), counter(input.counter) {
+template<class T>
+bool GlideHashMap<T>::greaterThan(const KeyPair &x, const KeyPair &y) {
+  return x.first > y.first;
 }
 
-template<class T1, class T2>
-GlideMap<T1, T2>::~GlideMap() {
+template<class T>
+GlideHashMap<T>::GlideHashMap() : positionList(), hashMap() {
 }
 
-template<class T1, class T2>
-GlideMap<T1, T2> & GlideMap<T1, T2>::operator=(const GlideMap<T1, T2> &input) {
-  keyMap = input.keyMap;
-  positionMap = input.positionMap;
-  counter = input.counter;
+template<class T>
+GlideHashMap<T>::GlideHashMap(const GlideHashMap<T> &input) : positionList(input.positionList), hashMap(input.hashMap) {
+  reindex();
+}
+
+template<class T>
+GlideHashMap<T>::GlideHashMap(GlideHashMap<T> &&input) : positionList(std::move(input.positionList)), hashMap(std::move(input.hashMap)) {
+}
+
+template<class T>
+GlideHashMap<T>::~GlideHashMap() {
+}
+
+template<class T>
+GlideHashMap<T> & GlideHashMap<T>::operator=(const GlideHashMap<T> &input) {
+  hashMap = input.hashMap;
+  positionList = input.positionList;
+  reindex();
   return *this;
 }
 
-template<class T1, class T2>
-GlideMap<T1, T2> & GlideMap<T1, T2>::operator=(GlideMap<T1, T2> &&input) {
-  keyMap = std::move(input.keyMap);
-  positionMap = std::move(input.positionMap);
-  counter = input.counter;
+template<class T>
+GlideHashMap<T> & GlideHashMap<T>::operator=(GlideHashMap<T> &&input) {
+  hashMap = std::move(input.hashMap);
+  positionList = std::move(input.positionList);
   return *this;
 }
 
-template<class T1, class T2>
-size_t GlideMap<T1, T2>::size() const {
-  return keyMap.size();
+template<class T>
+size_t GlideHashMap<T>::size() const {
+  return hashMap.size();
 }
 
-template<class T1, class T2>
-size_t GlideMap<T1, T2>::count(const T1 &key) const {
-  const GlideSortItem<T1> itemKey(&key);
-  return keyMap.count(itemKey);
+template<class T>
+size_t GlideHashMap<T>::count(const std::string &key) const {
+  const Key itemKey(&key);
+  return hashMap.count(itemKey);
 }
 
-template<class T1, class T2>
-bool GlideMap<T1, T2>::empty() const {
-  return keyMap.empty();
+template<class T>
+bool GlideHashMap<T>::empty() const {
+  return hashMap.empty();
 }
 
-template<class T1, class T2>
-const T2 & GlideMap<T1, T2>::at(const T1 &key) const {
-  const GlideSortItem<T1> itemKey(&key);
-  return keyMap.at(itemKey).second.value();
+template<class T>
+const T & GlideHashMap<T>::at(const std::string &key) const {
+  const Key itemKey(&key);
+  return hashMap.at(itemKey).second.value();
 }
 
-template<class T1, class T2>
-T2 & GlideMap<T1, T2>::at(const T1 &key) {
-  const GlideSortItem<T1> itemKey(&key);
-  return keyMap.at(itemKey).second.value();
+template<class T>
+T & GlideHashMap<T>::at(const std::string &key) {
+  const Key itemKey(&key);
+  return hashMap.at(itemKey).second.value();
 }
 
-template<class T1, class T2>
-T2 & GlideMap<T1, T2>::operator[](const T1 &key) {
-  GlideSortItem<T1> newItemKey(key);
-  std::pair< size_t, GlideItem<T2> > *pair(&(keyMap[newItemKey]));
-  if(pair->first == 0) {
-    pair->first = ++counter;
-    std::pair< GlideSortItem<T1>, GlideItem<T2> > insertPair(newItemKey, pair->second);
-    positionMap[pair->first] = std::move(insertPair);
+template<class T>
+T & GlideHashMap<T>::operator[](const std::string &key) {
+  Key newItemKey(key);
+  ValuePair &pair = hashMap[newItemKey];
+  if(!pair.first.first) {
+    positionList.push_back(KeyPair(std::move(newItemKey), pair.second));
+    pair.first.first = true;
+    pair.first.second = positionList.end();
+    --(pair.first.second);
   }
-  else {
-    positionMap[pair->first].second = pair->second;
-  }
-  return pair->second.value();
+  return pair.second.value();
 }
 
-template<class T1, class T2>
-T2 & GlideMap<T1, T2>::operator[](T1 &&key) {
-  GlideSortItem<T1> newItemKey(std::move(key));
-  std::pair< size_t, GlideItem<T2> > *pair(&(keyMap[newItemKey]));
-  if(pair->first == 0) {
-    pair->first = ++counter;
-    std::pair< GlideSortItem<T1>, GlideItem<T2> > insertPair(newItemKey, pair->second);
-    positionMap[pair->first] = std::move(insertPair);
+template<class T>
+T & GlideHashMap<T>::operator[](std::string &&key) {
+  Key newItemKey(std::move(key));
+  ValuePair &pair = hashMap[newItemKey];
+  if(!pair.first.first) {
+    positionList.push_back(KeyPair(std::move(newItemKey), pair.second));
+    pair.first.first = true;
+    pair.first.second = positionList.end();
+    --(pair.first.second);
   }
-  else {
-    positionMap[pair->first].second = pair->second;
-  }
-  return pair->second.value();
+  return pair.second.value();
 }
 
-template<class T1, class T2>
-size_t GlideMap<T1, T2>::erase(const T1 &key) {
-  const GlideSortItem<T1> itemKey(&key);
-  if(keyMap.count(itemKey)) {
-    positionMap.erase(keyMap[itemKey].first);
-    return keyMap.erase(itemKey);
+template<class T>
+size_t GlideHashMap<T>::erase(const std::string &key) {
+  const Key itemKey(&key);
+  if(hashMap.count(itemKey)) {
+    positionList.erase(hashMap[itemKey].first.second);
+    return hashMap.erase(itemKey);
   }
   return 0;
 }
 
-template<class T1, class T2>
-void GlideMap<T1, T2>::clear() {
-  keyMap.clear();
-  positionMap.clear();
-  counter = 0;
+template<class T>
+void GlideHashMap<T>::clear() {
+  hashMap.clear();
+  positionList.clear();
 }
 
-template<class T1, class T2>
-void GlideMap<T1, T2>::sort() {
-  positionMap.clear();
-  counter = 0;
-  auto i(keyMap.begin());
-  auto iEnd(keyMap.end());
-  while(i != iEnd) {
-    positionMap[++counter] = std::pair< GlideSortItem<T1>, GlideItem<T2> >(i->first, i->second.second);
-    i->second.first = counter;
-    ++i;
-  }
+template<class T>
+void GlideHashMap<T>::sort() {
+  positionList.sort(GlideHashMap::lessThan);
 }
 
-template<class T1, class T2>
-void GlideMap<T1, T2>::rsort() {
-  positionMap.clear();
-  counter = 0;
-  auto i(keyMap.rbegin());
-  auto iEnd(keyMap.rend());
-  while(i != iEnd) {
-    positionMap[++counter] = std::pair< GlideSortItem<T1>, GlideItem<T2> >(i->first, i->second.second);
-    i->second.first = counter;
-    ++i;
-  }
+template<class T>
+void GlideHashMap<T>::rsort() {
+  positionList.sort(GlideHashMap::greaterThan);
 }
 
-template<class T1, class T2>
-auto GlideMap<T1, T2>::begin() const -> GlideMapIterator<decltype(positionMap.begin())> {
-  return GlideMapIterator<decltype(positionMap.begin())>(positionMap.begin());
+template<class T>
+auto GlideHashMap<T>::begin() const -> GlideHashMapIterator<decltype(positionList.begin())> {
+  return GlideHashMapIterator<decltype(positionList.begin())>(positionList.begin());
 }
 
-template<class T1, class T2>
-auto GlideMap<T1, T2>::end() const -> GlideMapIterator<decltype(positionMap.end())> {
-  return GlideMapIterator<decltype(positionMap.end())>(positionMap.end());
+template<class T>
+auto GlideHashMap<T>::end() const -> GlideHashMapIterator<decltype(positionList.end())> {
+  return GlideHashMapIterator<decltype(positionList.end())>(positionList.end());
 }
 
-template<class T1, class T2>
-auto GlideMap<T1, T2>::begin() -> GlideMapIterator<decltype(positionMap.begin())> {
-  return GlideMapIterator<decltype(positionMap.begin())>(positionMap.begin());
+template<class T>
+auto GlideHashMap<T>::begin() -> GlideHashMapIterator<decltype(positionList.begin())> {
+  return GlideHashMapIterator<decltype(positionList.begin())>(positionList.begin());
 }
 
-template<class T1, class T2>
-auto GlideMap<T1, T2>::end() -> GlideMapIterator<decltype(positionMap.end())> {
-  return GlideMapIterator<decltype(positionMap.end())>(positionMap.end());
+template<class T>
+auto GlideHashMap<T>::end() -> GlideHashMapIterator<decltype(positionList.end())> {
+  return GlideHashMapIterator<decltype(positionList.end())>(positionList.end());
 }
 
-template<class T1, class T2>
-auto GlideMap<T1, T2>::rbegin() const -> GlideMapIterator<decltype(positionMap.rbegin())> {
-  return GlideMapIterator<decltype(positionMap.rbegin())>(positionMap.rbegin());
+template<class T>
+auto GlideHashMap<T>::rbegin() const -> GlideHashMapIterator<decltype(positionList.rbegin())> {
+  return GlideHashMapIterator<decltype(positionList.rbegin())>(positionList.rbegin());
 }
 
-template<class T1, class T2>
-auto GlideMap<T1, T2>::rend() const -> GlideMapIterator<decltype(positionMap.rend())> {
-  return GlideMapIterator<decltype(positionMap.rend())>(positionMap.rend());
+template<class T>
+auto GlideHashMap<T>::rend() const -> GlideHashMapIterator<decltype(positionList.rend())> {
+  return GlideHashMapIterator<decltype(positionList.rend())>(positionList.rend());
 }
 
-template<class T1, class T2>
-auto GlideMap<T1, T2>::rbegin() -> GlideMapIterator<decltype(positionMap.rbegin())> {
-  return GlideMapIterator<decltype(positionMap.rbegin())>(positionMap.rbegin());
+template<class T>
+auto GlideHashMap<T>::rbegin() -> GlideHashMapIterator<decltype(positionList.rbegin())> {
+  return GlideHashMapIterator<decltype(positionList.rbegin())>(positionList.rbegin());
 }
 
-template<class T1, class T2>
-auto GlideMap<T1, T2>::rend() -> GlideMapIterator<decltype(positionMap.rend())> {
-  return GlideMapIterator<decltype(positionMap.rend())>(positionMap.rend());
-}
-
-template<class T1, class T2>
-auto GlideMap<T1, T2>::find(const T1 &key) const -> GlideMapIterator<decltype(positionMap.find(0))> {
-  const GlideSortItem<T1> itemKey(&key);
-  return GlideMapIterator<decltype(positionMap.find(0))>(positionMap.find(keyMap.at(itemKey).first));
-}
-
-template<class T1, class T2>
-auto GlideMap<T1, T2>::find(const T1 &key) -> GlideMapIterator<decltype(positionMap.find(0))> {
-  const GlideSortItem<T1> itemKey(&key);
-  return GlideMapIterator<decltype(positionMap.find(0))>(positionMap.find(keyMap.at(itemKey).first));
+template<class T>
+auto GlideHashMap<T>::rend() -> GlideHashMapIterator<decltype(positionList.rend())> {
+  return GlideHashMapIterator<decltype(positionList.rend())>(positionList.rend());
 }
 
 // ========================================
@@ -643,7 +683,7 @@ class GlideJson {
     const std::string & number() const;
     const std::string & string() const;
     const std::vector<GlideJson> & array() const;
-    const GlideMap<std::string, GlideJson> & object() const;
+    const GlideHashMap<GlideJson> & object() const;
     int toInt() const;
     unsigned int toUInt() const;
     long int toLong() const;
@@ -651,7 +691,7 @@ class GlideJson {
     bool & boolean();
     std::string & string();
     std::vector<GlideJson> & array();
-    GlideMap<std::string, GlideJson> & object();
+    GlideHashMap<GlideJson> & object();
     static unsigned char getHex(unsigned char input);
     static GlideJson parse(const std::string &input);
     static GlideJson parse(const char *input, size_t size);
@@ -719,8 +759,8 @@ namespace GlideJsonScheme {
       virtual std::string & theString();
       virtual const std::vector<GlideJson> & theArray() const;
       virtual std::vector<GlideJson> & theArray();
-      virtual const GlideMap<std::string, GlideJson> & theObject() const;
-      virtual GlideMap<std::string, GlideJson> & theObject();
+      virtual const GlideHashMap<GlideJson> & theObject() const;
+      virtual GlideHashMap<GlideJson> & theObject();
       virtual void dispose();
       virtual Base * duplicate() const;
   };
@@ -867,9 +907,9 @@ namespace GlideJsonScheme {
 
   class Object : public Base {
     public:
-      GlideMap<std::string, GlideJson> object;
+      GlideHashMap<GlideJson> object;
       Object();
-      Object(const GlideMap<std::string, GlideJson> &input);
+      Object(const GlideHashMap<GlideJson> &input);
       Object(const Object &input);
       Object(Object &&input);
       virtual ~Object();
@@ -878,8 +918,8 @@ namespace GlideJsonScheme {
       virtual GlideJson::Type getType() const;
       virtual std::string toJson() const;
       virtual std::string toJson(GlideJson::Whitespace type, size_t depth) const;
-      virtual const GlideMap<std::string, GlideJson> & theObject() const;
-      virtual GlideMap<std::string, GlideJson> & theObject();
+      virtual const GlideHashMap<GlideJson> & theObject() const;
+      virtual GlideHashMap<GlideJson> & theObject();
     private:
       static GlideLfs objectCache;
     public:

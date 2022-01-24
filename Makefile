@@ -15,11 +15,18 @@
 # You should have received a copy of the GNU General Public License
 # along with GlideJson. If not, see <https://www.gnu.org/licenses/gpl.html>.
 
+C = gcc
+C1FLAGS = -std=c99 -Wpedantic -Wall -Wextra -Wpointer-arith -Werror=vla -march=native
+C2FLAGS = -c -O3 -I./include/siphash
+CSOFLAGS = $(C2FLAGS) -fPIC $(C1FLAGS)
 CC = g++
 CC1FLAGS = -std=c++11 -Wpedantic -Wall -Wextra -Wpointer-arith -Werror=vla -march=native
-CC2FLAGS = -c -O3 -I./include/glidejson -I./include/test
+CC2FLAGS = -c -O3 -I./include/siphash -I./include/glidejson -I./include/test
 CCOFLAGS = $(CC2FLAGS) $(CC1FLAGS)
 CCSOFLAGS = $(CC2FLAGS) -fPIC $(CC1FLAGS)
+
+SIP_HASH_SOURCES = $(wildcard src/siphash/*.c)
+SIP_HASH_OBJECTS = $(SIP_HASH_SOURCES:.c=.o)
 
 GLIDE_JSON = lib/libglidejson.so
 GLIDE_JSON_SOURCES = $(wildcard src/glidejson/*.cpp)
@@ -34,9 +41,12 @@ GLIDE_JSON_TEST_OBJECTS = $(GLIDE_JSON_TEST_SOURCES:.cpp=.o)
 all: $(GLIDE_JSON_TEST)
 
 clean:
-	rm -vrf lib bin $(GLIDE_JSON_OBJECTS) $(GLIDE_JSON_TEST_OBJECTS)
+	rm -vrf lib bin $(SIP_HASH_OBJECTS) $(GLIDE_JSON_OBJECTS) $(GLIDE_JSON_TEST_OBJECTS)
 
 distclean: clean
+
+src/siphash/%.o: src/siphash/%.c
+	$(C) $(CSOFLAGS) -o $@ $<
 
 src/glidejson/%.o: src/glidejson/%.cpp
 	$(CC) $(CCSOFLAGS) -o $@ $<
@@ -48,8 +58,8 @@ bin: lib
 	mkdir -p bin
 	ln -sn ../lib bin/lib
 
-$(GLIDE_JSON): $(GLIDE_JSON_OBJECTS) lib
-	$(CC) -shared $(CC1FLAGS) -o $(GLIDE_JSON) $(GLIDE_JSON_OBJECTS)
+$(GLIDE_JSON): $(GLIDE_JSON_OBJECTS) $(SIP_HASH_OBJECTS) lib
+	$(CC) -shared $(CC1FLAGS) -o $(GLIDE_JSON) $(GLIDE_JSON_OBJECTS) $(SIP_HASH_OBJECTS)
 
 src/test/%.o: src/test/%.cpp $(GLIDE_JSON)
 	$(CC) $(CCOFLAGS) -o $@ $<

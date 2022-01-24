@@ -17,6 +17,50 @@
 
 #include "GlideJson.hpp"
 
+Glide32Hasher::Glide32Hasher() : secret(SIP_HASH_SECRET_SIZE) {
+  std::random_device generator;
+  unsigned char * pSecret(secret.data());
+  size_t index(0);
+  do {
+    *((unsigned int *)(pSecret + index)) = generator();
+    index += sizeof(unsigned int);
+  }
+  while(index < SIP_HASH_SECRET_SIZE);
+}
+
+Glide32Hasher::Glide32Hasher(const Glide32Hasher &input) : secret(input.secret) {
+}
+
+Glide32Hasher::Glide32Hasher(Glide32Hasher &&input) : secret(std::move(input.secret)) {
+}
+
+Glide32Hasher::~Glide32Hasher() {
+}
+
+Glide32Hasher & Glide32Hasher::operator=(const Glide32Hasher &input) {
+  secret = input.secret;
+  return *this;
+}
+
+Glide32Hasher & Glide32Hasher::operator=(Glide32Hasher &&input) {
+  secret = std::move(input.secret);
+  return *this;
+}
+
+size_t Glide32Hasher::operator()(const GlideSortItem<std::string> &key) const {
+  size_t output;
+  halfsiphash(key.value().data(), key.value().size(), secret.data(), (uint8_t *)(&output), sizeof(output));
+  return output;
+}
+
+size_t Glide64Hasher::operator()(const GlideSortItem<std::string> &key) const {
+  size_t output;
+  siphash(key.value().data(), key.value().size(), secret.data(), (uint8_t *)(&output), sizeof(output));
+  return output;
+}
+
+// ========================================
+
 GlideCheck::GlideCheck() {
   if(sizeof(unsigned char) > 1) {
     throw GlideError("GlideCheck::GlideCheck(): \"unsigned char\" has more than one byte!");
@@ -387,7 +431,7 @@ const std::vector<GlideJson> & GlideJson::array() const {
   return content->theArray();
 }
 
-const GlideMap<std::string, GlideJson> & GlideJson::object() const {
+const GlideHashMap<GlideJson> & GlideJson::object() const {
   return content->theObject();
 }
 
@@ -419,7 +463,7 @@ std::vector<GlideJson> & GlideJson::array() {
   return content->theArray();
 }
 
-GlideMap<std::string, GlideJson> & GlideJson::object() {
+GlideHashMap<GlideJson> & GlideJson::object() {
   return content->theObject();
 }
 
@@ -828,14 +872,14 @@ namespace GlideJsonScheme {
     return nothing;
   }
 
-  const GlideMap<std::string, GlideJson> & Base::theObject() const {
-    static const GlideMap<std::string, GlideJson> nothing;
+  const GlideHashMap<GlideJson> & Base::theObject() const {
+    static const GlideHashMap<GlideJson> nothing;
     throw GlideError("GlideJsonScheme::Base::theObject(): This is NOT a GlideJsonScheme::Object object!");
     return nothing;
   }
 
-  GlideMap<std::string, GlideJson> & Base::theObject() {
-    static GlideMap<std::string, GlideJson> nothing;
+  GlideHashMap<GlideJson> & Base::theObject() {
+    static GlideHashMap<GlideJson> nothing;
     throw GlideError("GlideJsonScheme::Base::theObject(): This is NOT a GlideJsonScheme::Object object!");
     return nothing;
   }
@@ -1312,7 +1356,7 @@ namespace GlideJsonScheme {
   Object::Object() : Base(), object() {
   }
 
-  Object::Object(const GlideMap<std::string, GlideJson> &input) : Base(), object(input) {
+  Object::Object(const GlideHashMap<GlideJson> &input) : Base(), object(input) {
   }
 
   Object::Object(const Object &input) : Base(), object(input.object) {
@@ -1349,11 +1393,11 @@ namespace GlideJsonScheme {
   #include "Object.inc"
   #undef GLIDE_JSON_WHITESPACE
 
-  const GlideMap<std::string, GlideJson> & Object::theObject() const {
+  const GlideHashMap<GlideJson> & Object::theObject() const {
     return object;
   }
 
-  GlideMap<std::string, GlideJson> & Object::theObject() {
+  GlideHashMap<GlideJson> & Object::theObject() {
     return object;
   }
 

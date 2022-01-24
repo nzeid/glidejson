@@ -32,10 +32,10 @@ class GlideJsonTest {
   private:
     static std::vector<std::string> errors;
   public:
-    static std::string mapToString(const GlideMap<std::string, int> &input);
+    static std::string hashMapToString(const GlideHashMap<int> &input);
     static std::string vectorToString(const std::vector< std::pair<std::string, int> > &input);
     static int vectorGet(const std::vector< std::pair<std::string, int> > &input, const std::string &key);
-    static void testGlideMap();
+    static void testGlideHashMap();
     static void escapeByte(const unsigned char &input, std::string &output);
     static void generateJson(const int &mode, std::string * const &output, std::string * const &outputWithWs);
     static std::string generateJson(const int &mode);

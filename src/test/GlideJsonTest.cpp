@@ -19,7 +19,7 @@
 
 std::vector<std::string> GlideJsonTest::errors;
 
-std::string GlideJsonTest::mapToString(const GlideMap<std::string, int> &input) {
+std::string GlideJsonTest::hashMapToString(const GlideHashMap<int> &input) {
   std::string output;
   auto i(input.begin());
   auto iEnd(input.end());
@@ -61,9 +61,9 @@ int GlideJsonTest::vectorGet(const std::vector< std::pair<std::string, int> > &i
   return -1;
 }
 
-void GlideJsonTest::testGlideMap() {
+void GlideJsonTest::testGlideHashMap() {
   auto start(std::chrono::steady_clock::now());
-  GlideMap<std::string, int> subject;
+  GlideHashMap<int> subject;
   std::vector< std::pair<std::string, int> > checker;
   int mode;
   std::string key;
@@ -110,7 +110,7 @@ void GlideJsonTest::testGlideMap() {
         }
         break;
       case 2:
-        if(GlideJsonTest::mapToString(subject) != GlideJsonTest::vectorToString(checker)) {
+        if(GlideJsonTest::hashMapToString(subject) != GlideJsonTest::vectorToString(checker)) {
           GlideJsonTest::errors.push_back("The subject and the checker are not the same!");
         }
         break;
@@ -139,7 +139,7 @@ void GlideJsonTest::testGlideMap() {
     }
   }
   while(--i > 0);
-  std::cout << "Indexed map test: " << (std::chrono::steady_clock::now() - start).count() << "\n";
+  std::cout << "Indexed hash map test: " << (std::chrono::steady_clock::now() - start).count() << "\n";
   // Create a map for the checker:
   std::map<std::string, int> checkerMap;
   size_t j(0);
@@ -157,7 +157,7 @@ void GlideJsonTest::testGlideMap() {
     ++k;
   }
   subject.sort();
-  if(GlideJsonTest::mapToString(subject) != GlideJsonTest::vectorToString(checker)) {
+  if(GlideJsonTest::hashMapToString(subject) != GlideJsonTest::vectorToString(checker)) {
     GlideJsonTest::errors.push_back("Sorting the subject caused it not to be the same as the checker!");
   }
   // Reverse-sort the checker and compare it:
@@ -169,7 +169,7 @@ void GlideJsonTest::testGlideMap() {
     ++m;
   }
   subject.rsort();
-  if(GlideJsonTest::mapToString(subject) != GlideJsonTest::vectorToString(checker)) {
+  if(GlideJsonTest::hashMapToString(subject) != GlideJsonTest::vectorToString(checker)) {
     GlideJsonTest::errors.push_back("Sorting the subject caused it not to be the same as the checker!");
   }
 }
@@ -1237,7 +1237,7 @@ void GlideJsonTest::testJsonInParallel() {
 
 int GlideJsonTest::run() {
   std::srand(std::time(NULL));
-  GlideJsonTest::testGlideMap();
+  GlideJsonTest::testGlideHashMap();
   GlideJsonTest::testCodepoints();
   GlideJsonTest::testBase64();
   GlideJsonTest::testJson();
