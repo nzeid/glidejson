@@ -45,11 +45,138 @@ class GlideError : public std::runtime_error {
 
 // ========================================
 
+class GlideLfs;
+
+class GlideLfsNode {
+  friend class GlideLfs;
+  private:
+    GlideLfsNode *below;
+  public:
+    GlideLfsNode();
+    GlideLfsNode(const GlideLfsNode &input);
+    virtual ~GlideLfsNode();
+    GlideLfsNode & operator=(const GlideLfsNode &input);
+};
+
+GlideLfsNode::GlideLfsNode() : below(NULL) {
+}
+
+GlideLfsNode::GlideLfsNode(const GlideLfsNode &input) : below(NULL) {
+  (void)input;
+  throw GlideError("GlideLfsNode::GlideLfsNode(const GlideLfsNode &input): No copy constructor!");
+}
+
+GlideLfsNode::~GlideLfsNode() {
+}
+
+GlideLfsNode & GlideLfsNode::operator=(const GlideLfsNode &input) {
+  (void)input;
+  throw GlideError("GlideLfsNode::operator=(const GlideLfsNode &input): No assignment operator!");
+  return *this;
+}
+
+// ========================================
+
+class GlideLfs {
+  protected:
+    std::atomic<GlideLfsNode *> top;
+  public:
+    GlideLfs();
+    GlideLfs(const GlideLfs &input);
+    ~GlideLfs();
+    GlideLfs & operator=(const GlideLfs &input);
+    void push(GlideLfsNode *input);
+    GlideLfsNode * pop();
+};
+
+GlideLfs::GlideLfs() : top(NULL) {
+}
+
+GlideLfs::GlideLfs(const GlideLfs &input) : top(NULL) {
+  (void)input;
+  throw GlideError("GlideLfs::GlideLfs(const GlideLfs &input): No copy constructor!");
+}
+
+GlideLfs::~GlideLfs() {
+  GlideLfsNode *current;
+  while((current = pop())) {
+    delete current;
+  }
+}
+
+GlideLfs & GlideLfs::operator=(const GlideLfs &input) {
+  (void)input;
+  throw GlideError("GlideLfs::operator=(const GlideLfs &input): No assignment operator!");
+  return *this;
+}
+
+void GlideLfs::push(GlideLfsNode *input) {
+  /*
+    - If "input->below" equals "top", set "top" to "input".
+    - If "input->below" does not equal "top", set "input->below" to "top".
+  */
+  input->below = top.load(std::memory_order_relaxed);
+  while(!top.compare_exchange_weak(input->below, input, std::memory_order_release, std::memory_order_relaxed));
+}
+
+GlideLfsNode * GlideLfs::pop() {
+  /*
+    - If "output" equals "top", set "top" to "output->below".
+    - If "output" does not equal "top", set "output" to "top".
+  */
+  GlideLfsNode *output(top.load(std::memory_order_relaxed));
+  do {
+    if(output == NULL) {
+      return output;
+    }
+  }
+  while(!top.compare_exchange_weak(output, output->below, std::memory_order_release, std::memory_order_relaxed));
+  output->below = NULL;
+  return output;
+}
+
+// ========================================
+
+template<class T>
+class GlideLfsItem : public GlideLfsNode {
+  private:
+    static GlideLfs itemCache;
+    static const T blankItem;
+  public:
+    T item;
+    std::atomic<size_t> heldBy;
+    static GlideLfsItem * make();
+    void dispose();
+};
+
+template<class T>
+GlideLfs GlideLfsItem<T>::itemCache;
+
+template<class T>
+const T GlideLfsItem<T>::blankItem = T();
+
+template<class T>
+GlideLfsItem<T> * GlideLfsItem<T>::make() {
+  GlideLfsItem<T> *output((GlideLfsItem<T> *)(itemCache.pop()));
+  if(output == NULL) {
+    output = new GlideLfsItem<T>();
+  }
+  return output;
+}
+
+template<class T>
+void GlideLfsItem<T>::dispose() {
+  item = blankItem;
+  itemCache.push(this);
+}
+
+// ========================================
+
 template<class T1>
 class GlideItem {
   protected:
+    GlideLfsItem<T1> *lfsItem;
     const T1 *item;
-    std::atomic<size_t> *heldBy;
   public:
     GlideItem();
     GlideItem(const T1 *input);
@@ -65,62 +192,67 @@ class GlideItem {
 };
 
 template<class T1>
-GlideItem<T1>::GlideItem() : item(new T1()), heldBy(new std::atomic<size_t>(1)) {
+GlideItem<T1>::GlideItem() : lfsItem(GlideLfsItem<T1>::make()) {
+  lfsItem->heldBy = 1;
+  item = &(lfsItem->item);
 }
 
 template<class T1>
-GlideItem<T1>::GlideItem(const T1 *input) : item(input), heldBy(NULL) {
+GlideItem<T1>::GlideItem(const T1 *input) : lfsItem(NULL), item(input) {
 }
 
 template<class T1>
-GlideItem<T1>::GlideItem(const T1 &input) : item(new T1(input)), heldBy(new std::atomic<size_t>(1)) {
+GlideItem<T1>::GlideItem(const T1 &input) : lfsItem(GlideLfsItem<T1>::make()) {
+  lfsItem->item = input;
+  lfsItem->heldBy = 1;
+  item = &(lfsItem->item);
 }
 
 template<class T1>
-GlideItem<T1>::GlideItem(T1 &&input) : item(new T1(std::move(input))), heldBy(new std::atomic<size_t>(1)) {
+GlideItem<T1>::GlideItem(T1 &&input) : lfsItem(GlideLfsItem<T1>::make()) {
+  lfsItem->item = std::move(input);
+  lfsItem->heldBy = 1;
+  item = &(lfsItem->item);
 }
 
 template<class T1>
-GlideItem<T1>::GlideItem(const GlideItem<T1> &input) : item(input.item), heldBy(input.heldBy) {
-  heldBy && ++(*heldBy);
+GlideItem<T1>::GlideItem(const GlideItem<T1> &input) : lfsItem(input.lfsItem), item(input.item) {
+  lfsItem && ++(lfsItem->heldBy);
 }
 
 template<class T1>
-GlideItem<T1>::GlideItem(GlideItem<T1> &&input) : item(input.item), heldBy(input.heldBy) {
+GlideItem<T1>::GlideItem(GlideItem<T1> &&input) : lfsItem(input.lfsItem), item(input.item) {
+  input.lfsItem = NULL;
   input.item = NULL;
-  input.heldBy = NULL;
 }
 
 template<class T1>
 GlideItem<T1>::~GlideItem() {
-  if(heldBy && !(--(*heldBy))) {
-    delete item;
-    delete heldBy;
+  if(lfsItem && !(--(lfsItem->heldBy))) {
+    lfsItem->dispose();
   }
 }
 
 template<class T1>
 GlideItem<T1> & GlideItem<T1>::operator=(const GlideItem<T1> &input) {
-  if(heldBy && !(--(*heldBy))) {
-    delete item;
-    delete heldBy;
+  if(lfsItem && !(--(lfsItem->heldBy))) {
+    lfsItem->dispose();
   }
+  lfsItem = input.lfsItem;
   item = input.item;
-  heldBy = input.heldBy;
-  heldBy && ++(*heldBy);
+  lfsItem && ++(lfsItem->heldBy);
   return *this;
 }
 
 template<class T1>
 GlideItem<T1> & GlideItem<T1>::operator=(GlideItem<T1> &&input) {
-  if(heldBy && !(--(*heldBy))) {
-    delete item;
-    delete heldBy;
+  if(lfsItem && !(--(lfsItem->heldBy))) {
+    lfsItem->dispose();
   }
+  lfsItem = input.lfsItem;
   item = input.item;
-  heldBy = input.heldBy;
+  input.lfsItem = NULL;
   input.item = NULL;
-  input.heldBy = NULL;
   return *this;
 }
 
@@ -482,98 +614,6 @@ auto GlideHashMap<T>::rbegin() -> GlideHashMapIterator<decltype(positionList.rbe
 template<class T>
 auto GlideHashMap<T>::rend() -> GlideHashMapIterator<decltype(positionList.rend())> {
   return GlideHashMapIterator<decltype(positionList.rend())>(positionList.rend());
-}
-
-// ========================================
-
-class GlideLfs;
-
-class GlideLfsNode {
-  friend class GlideLfs;
-  private:
-    GlideLfsNode *below;
-  public:
-    GlideLfsNode();
-    GlideLfsNode(const GlideLfsNode &input);
-    virtual ~GlideLfsNode();
-    GlideLfsNode & operator=(const GlideLfsNode &input);
-};
-
-GlideLfsNode::GlideLfsNode() : below(NULL) {
-}
-
-GlideLfsNode::GlideLfsNode(const GlideLfsNode &input) : below(NULL) {
-  (void)input;
-  throw GlideError("GlideLfsNode::GlideLfsNode(const GlideLfsNode &input): No copy constructor!");
-}
-
-GlideLfsNode::~GlideLfsNode() {
-}
-
-GlideLfsNode & GlideLfsNode::operator=(const GlideLfsNode &input) {
-  (void)input;
-  throw GlideError("GlideLfsNode::operator=(const GlideLfsNode &input): No assignment operator!");
-  return *this;
-}
-
-// ========================================
-
-class GlideLfs {
-  protected:
-    std::atomic<GlideLfsNode *> top;
-  public:
-    GlideLfs();
-    GlideLfs(const GlideLfs &input);
-    ~GlideLfs();
-    GlideLfs & operator=(const GlideLfs &input);
-    void push(GlideLfsNode *input);
-    GlideLfsNode * pop();
-};
-
-GlideLfs::GlideLfs() : top(NULL) {
-}
-
-GlideLfs::GlideLfs(const GlideLfs &input) : top(NULL) {
-  (void)input;
-  throw GlideError("GlideLfs::GlideLfs(const GlideLfs &input): No copy constructor!");
-}
-
-GlideLfs::~GlideLfs() {
-  GlideLfsNode *current;
-  while((current = pop())) {
-    delete current;
-  }
-}
-
-GlideLfs & GlideLfs::operator=(const GlideLfs &input) {
-  (void)input;
-  throw GlideError("GlideLfs::operator=(const GlideLfs &input): No assignment operator!");
-  return *this;
-}
-
-void GlideLfs::push(GlideLfsNode *input) {
-  /*
-    - If "input->below" equals "top", set "top" to "input".
-    - If "input->below" does not equal "top", set "input->below" to "top".
-  */
-  input->below = top.load(std::memory_order_relaxed);
-  while(!top.compare_exchange_weak(input->below, input, std::memory_order_release, std::memory_order_relaxed));
-}
-
-GlideLfsNode * GlideLfs::pop() {
-  /*
-    - If "output" equals "top", set "top" to "output->below".
-    - If "output" does not equal "top", set "output" to "top".
-  */
-  GlideLfsNode *output(top.load(std::memory_order_relaxed));
-  do {
-    if(output == NULL) {
-      return output;
-    }
-  }
-  while(!top.compare_exchange_weak(output, output->below, std::memory_order_release, std::memory_order_relaxed));
-  output->below = NULL;
-  return output;
 }
 
 // ========================================
