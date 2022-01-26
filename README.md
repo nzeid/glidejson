@@ -14,6 +14,8 @@ The idea is to more aggressively balance convenience and speed. You can see a ro
 
 ## Building/Embedding
 
+It's recommended that you run the given makefile to get a quick readout of any individual compiler/linker commands that you'd like to embed in your own project.
+
 The few files that make up GlideJson are the header:
 
     include/glidejson/GlideJson.hpp
@@ -22,20 +24,21 @@ The implementation:
 
     src/glidejson/GlideJson.cpp
 
-And code fragments used by `src/glidejson/GlideJson.cpp`:
+Code fragments used by `src/glidejson/GlideJson.cpp`:
 
     src/glidejson/Array.inc
     src/glidejson/Encoder.inc
     src/glidejson/Object.inc
     src/glidejson/Parser.inc
 
-As long as the code fragments remain within the same directory as `GlideJson.cpp`, simply specify `GlideJson.hpp` as a header and `GlideJson.cpp` for the object file. Running a shell with GCC, compiling the program `test` will look like this:
+And SipHash:
 
-    g++ -c -O2 -I. -I./GlideJson/include/glidejson -std=c++11 -march=native -o GlideJson.o GlideJson/src/glidejson/GlideJson.cpp
-    g++ -c -O2 -I. -I./GlideJson/include/glidejson -std=c++11 -march=native -o test.o test.cpp
-    g++ -std=c++11 -march=native -o test test.o GlideJson.o
+    include/siphash/halfsiphash.h
+    include/siphash/siphash.h
+    src/siphash/halfsiphash.c
+    src/siphash/siphash.c
 
-And again, if you are running a shell with GCC, you can simply run the given makefile to create a shared library that will end up in `lib`. Whatever your use case may be, compiling should work on any platform.
+Note that SipHash is pure C. Remember that you can always just run the given makefile to create a shared library that will end up in `lib`. Whatever your use case may be, compiling should work on any platform.
 
 ## Usage
 
@@ -107,7 +110,7 @@ Specifically `GlideJson::Type` and `GlideJson::Whitespace`:
     const std::string & number() const;
     const std::string & string() const;
     const std::vector<GlideJson> & array() const;
-    const GlideMap<std::string, GlideJson> & object() const;
+    const GlideHashMap<GlideJson> & object() const;
     int toInt() const;
     unsigned int toUInt() const;
     long int toLong() const;
@@ -118,7 +121,7 @@ Specifically `GlideJson::Type` and `GlideJson::Whitespace`:
     bool & boolean();
     std::string & string();
     std::vector<GlideJson> & array();
-    GlideMap<std::string, GlideJson> & object();
+    GlideHashMap<GlideJson> & object();
 
 ### Parsing
 
@@ -152,23 +155,23 @@ There is some very basic support for pretty-printing through `GlideJson::Whitesp
     static std::string base64Decode(const std::string &input);
     static std::string base64Decode(const char * const &input, const size_t &size);
 
-### GlideMap&lt;class T1, class T2&gt;
-This class, which is used above as `GlideMap<std::string, GlideJson>`, behaves almost exactly like `std::map`, with the addition that insertion order is preserved and sorting functions `sort` and `rsort` are provided. If it wasn't already obvious, this is the structure used to represent JSON objects.
+### GlideHashMap&lt;class T&gt;
+This class, which is used above as `GlideHashMap<GlideJson>`, behaves almost exactly like `std::unordered_map`, with the addition that insertion order is preserved and sorting functions `sort` and `rsort` are provided. If it wasn't already obvious, this is the structure used to represent JSON objects.
 
-    GlideMap();
-    GlideMap(const GlideMap &input);
-    GlideMap(GlideMap &&input);
-    ~GlideMap();
-    GlideMap & operator=(const GlideMap &input);
-    GlideMap & operator=(GlideMap &&input);
+    GlideHashMap();
+    GlideHashMap(const GlideHashMap &input);
+    GlideHashMap(GlideHashMap &&input);
+    ~GlideHashMap();
+    GlideHashMap & operator=(const GlideHashMap &input);
+    GlideHashMap & operator=(GlideHashMap &&input);
     size_t size() const;
-    size_t count(const T1 &key) const;
+    size_t count(const std::string &key) const;
     bool empty() const;
-    const T2 & at(const T1 &key) const;
-    T2 & at(const T1 &key);
-    T2 & operator[](const T1 &key);
-    T2 & operator[](T1 &&key);
-    size_t erase(const T1 &key);
+    const T & at(const std::string &key) const;
+    T & at(const std::string &key);
+    T & operator[](const std::string &key);
+    T & operator[](std::string &&key);
+    size_t erase(const std::string &key);
     void clear();
     void sort();
     void rsort();
@@ -180,8 +183,6 @@ This class, which is used above as `GlideMap<std::string, GlideJson>`, behaves a
     auto rend() const;
     auto rbegin();
     auto rend();
-    auto find(const T1 &key) const;
-    auto find(const T1 &key);
 
 ## Example
 
@@ -236,7 +237,7 @@ Please communicate changes over this project's GitLab/GitHub pages. Bear in mind
 
 ## License
 
-Copyright (c) 2020 Nader G. Zeid
+Copyright (c) 2021 Nader G. Zeid
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Nader G. Zeid
+// Copyright (c) 2021 Nader G. Zeid
 //
 // This file is part of GlideJson.
 //
