@@ -58,23 +58,6 @@ class GlideLfsNode {
     GlideLfsNode & operator=(const GlideLfsNode &input);
 };
 
-GlideLfsNode::GlideLfsNode() : below(NULL) {
-}
-
-GlideLfsNode::GlideLfsNode(const GlideLfsNode &input) : below(NULL) {
-  (void)input;
-  throw GlideError("GlideLfsNode::GlideLfsNode(const GlideLfsNode &input): No copy constructor!");
-}
-
-GlideLfsNode::~GlideLfsNode() {
-}
-
-GlideLfsNode & GlideLfsNode::operator=(const GlideLfsNode &input) {
-  (void)input;
-  throw GlideError("GlideLfsNode::operator=(const GlideLfsNode &input): No assignment operator!");
-  return *this;
-}
-
 // ========================================
 
 class GlideLfs {
@@ -88,52 +71,6 @@ class GlideLfs {
     void push(GlideLfsNode *input);
     GlideLfsNode * pop();
 };
-
-GlideLfs::GlideLfs() : top(NULL) {
-}
-
-GlideLfs::GlideLfs(const GlideLfs &input) : top(NULL) {
-  (void)input;
-  throw GlideError("GlideLfs::GlideLfs(const GlideLfs &input): No copy constructor!");
-}
-
-GlideLfs::~GlideLfs() {
-  GlideLfsNode *current;
-  while((current = pop())) {
-    delete current;
-  }
-}
-
-GlideLfs & GlideLfs::operator=(const GlideLfs &input) {
-  (void)input;
-  throw GlideError("GlideLfs::operator=(const GlideLfs &input): No assignment operator!");
-  return *this;
-}
-
-void GlideLfs::push(GlideLfsNode *input) {
-  /*
-    - If "input->below" equals "top", set "top" to "input".
-    - If "input->below" does not equal "top", set "input->below" to "top".
-  */
-  input->below = top.load(std::memory_order_relaxed);
-  while(!top.compare_exchange_weak(input->below, input, std::memory_order_release, std::memory_order_relaxed));
-}
-
-GlideLfsNode * GlideLfs::pop() {
-  /*
-    - If "output" equals "top", set "top" to "output->below".
-    - If "output" does not equal "top", set "output" to "top".
-  */
-  GlideLfsNode *output(top.load(std::memory_order_relaxed));
-  do {
-    if(output == NULL) {
-      return output;
-    }
-  }
-  while(!top.compare_exchange_weak(output, output->below, std::memory_order_release, std::memory_order_relaxed));
-  output->below = NULL;
-  return output;
-}
 
 // ========================================
 
@@ -172,69 +109,69 @@ void GlideLfsItem<T>::dispose() {
 
 // ========================================
 
-template<class T1>
+template<class T>
 class GlideItem {
   protected:
-    GlideLfsItem<T1> *lfsItem;
-    const T1 *item;
+    GlideLfsItem<T> *lfsItem;
+    const T *item;
   public:
     GlideItem();
-    GlideItem(const T1 *input);
-    GlideItem(const T1 &input);
-    GlideItem(T1 &&input);
+    GlideItem(const T *input);
+    GlideItem(const T &input);
+    GlideItem(T &&input);
     GlideItem(const GlideItem &input);
     GlideItem(GlideItem &&input);
     ~GlideItem();
     GlideItem & operator=(const GlideItem &input);
     GlideItem & operator=(GlideItem &&input);
-    const T1 & value() const;
-    T1 & value();
+    const T & value() const;
+    T & value();
 };
 
-template<class T1>
-GlideItem<T1>::GlideItem() : lfsItem(GlideLfsItem<T1>::make()) {
+template<class T>
+GlideItem<T>::GlideItem() : lfsItem(GlideLfsItem<T>::make()) {
   lfsItem->heldBy = 1;
   item = &(lfsItem->item);
 }
 
-template<class T1>
-GlideItem<T1>::GlideItem(const T1 *input) : lfsItem(NULL), item(input) {
+template<class T>
+GlideItem<T>::GlideItem(const T *input) : lfsItem(NULL), item(input) {
 }
 
-template<class T1>
-GlideItem<T1>::GlideItem(const T1 &input) : lfsItem(GlideLfsItem<T1>::make()) {
+template<class T>
+GlideItem<T>::GlideItem(const T &input) : lfsItem(GlideLfsItem<T>::make()) {
   lfsItem->item = input;
   lfsItem->heldBy = 1;
   item = &(lfsItem->item);
 }
 
-template<class T1>
-GlideItem<T1>::GlideItem(T1 &&input) : lfsItem(GlideLfsItem<T1>::make()) {
+template<class T>
+GlideItem<T>::GlideItem(T &&input) : lfsItem(GlideLfsItem<T>::make()) {
   lfsItem->item = std::move(input);
   lfsItem->heldBy = 1;
   item = &(lfsItem->item);
 }
 
-template<class T1>
-GlideItem<T1>::GlideItem(const GlideItem<T1> &input) : lfsItem(input.lfsItem), item(input.item) {
+template<class T>
+GlideItem<T>::GlideItem(const GlideItem<T> &input) : lfsItem(input.lfsItem), item(input.item) {
   lfsItem && ++(lfsItem->heldBy);
 }
 
-template<class T1>
-GlideItem<T1>::GlideItem(GlideItem<T1> &&input) : lfsItem(input.lfsItem), item(input.item) {
+template<class T>
+GlideItem<T>::GlideItem(GlideItem<T> &&input) : lfsItem(input.lfsItem), item(input.item) {
   input.lfsItem = NULL;
   input.item = NULL;
 }
 
-template<class T1>
-GlideItem<T1>::~GlideItem() {
+template<class T>
+GlideItem<T>::~GlideItem() {
   if(lfsItem && !(--(lfsItem->heldBy))) {
     lfsItem->dispose();
   }
 }
 
-template<class T1>
-GlideItem<T1> & GlideItem<T1>::operator=(const GlideItem<T1> &input) {
+template<class T>
+GlideItem<T> & GlideItem<T>::operator=(const GlideItem<T> &input) {
   if(lfsItem && !(--(lfsItem->heldBy))) {
     lfsItem->dispose();
   }
@@ -244,8 +181,8 @@ GlideItem<T1> & GlideItem<T1>::operator=(const GlideItem<T1> &input) {
   return *this;
 }
 
-template<class T1>
-GlideItem<T1> & GlideItem<T1>::operator=(GlideItem<T1> &&input) {
+template<class T>
+GlideItem<T> & GlideItem<T>::operator=(GlideItem<T> &&input) {
   if(lfsItem && !(--(lfsItem->heldBy))) {
     lfsItem->dispose();
   }
@@ -256,40 +193,40 @@ GlideItem<T1> & GlideItem<T1>::operator=(GlideItem<T1> &&input) {
   return *this;
 }
 
-template<class T1>
-T1 & GlideItem<T1>::value() {
-  return *(const_cast<T1 *>(item));
+template<class T>
+T & GlideItem<T>::value() {
+  return *(const_cast<T *>(item));
 }
 
-template<class T1>
-const T1 & GlideItem<T1>::value() const {
+template<class T>
+const T & GlideItem<T>::value() const {
   return *item;
 }
 
 // ========================================
 
-template<class T1>
-class GlideSortItem : public GlideItem<T1> {
-  using GlideItem<T1>::GlideItem;
+template<class T>
+class GlideSortItem : public GlideItem<T> {
+  using GlideItem<T>::GlideItem;
   public:
     bool operator==(const GlideSortItem &input) const;
     bool operator<(const GlideSortItem &input) const;
     bool operator>(const GlideSortItem &input) const;
 };
 
-template<class T1>
-bool GlideSortItem<T1>::operator==(const GlideSortItem<T1> &input) const {
-  return *(GlideItem<T1>::item) == *(input.item);
+template<class T>
+bool GlideSortItem<T>::operator==(const GlideSortItem<T> &input) const {
+  return *(GlideItem<T>::item) == *(input.item);
 }
 
-template<class T1>
-bool GlideSortItem<T1>::operator<(const GlideSortItem<T1> &input) const {
-  return *(GlideItem<T1>::item) < *(input.item);
+template<class T>
+bool GlideSortItem<T>::operator<(const GlideSortItem<T> &input) const {
+  return *(GlideItem<T>::item) < *(input.item);
 }
 
-template<class T1>
-bool GlideSortItem<T1>::operator>(const GlideSortItem<T1> &input) const {
-  return *(GlideItem<T1>::item) > *(input.item);
+template<class T>
+bool GlideSortItem<T>::operator>(const GlideSortItem<T> &input) const {
+  return *(GlideItem<T>::item) > *(input.item);
 }
 
 // ========================================

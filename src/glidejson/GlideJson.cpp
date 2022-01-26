@@ -17,6 +17,73 @@
 
 #include "GlideJson.hpp"
 
+GlideLfsNode::GlideLfsNode() : below(NULL) {
+}
+
+GlideLfsNode::GlideLfsNode(const GlideLfsNode &input) : below(NULL) {
+  (void)input;
+  throw GlideError("GlideLfsNode::GlideLfsNode(const GlideLfsNode &input): No copy constructor!");
+}
+
+GlideLfsNode::~GlideLfsNode() {
+}
+
+GlideLfsNode & GlideLfsNode::operator=(const GlideLfsNode &input) {
+  (void)input;
+  throw GlideError("GlideLfsNode::operator=(const GlideLfsNode &input): No assignment operator!");
+  return *this;
+}
+
+// ========================================
+
+GlideLfs::GlideLfs() : top(NULL) {
+}
+
+GlideLfs::GlideLfs(const GlideLfs &input) : top(NULL) {
+  (void)input;
+  throw GlideError("GlideLfs::GlideLfs(const GlideLfs &input): No copy constructor!");
+}
+
+GlideLfs::~GlideLfs() {
+  GlideLfsNode *current;
+  while((current = pop())) {
+    delete current;
+  }
+}
+
+GlideLfs & GlideLfs::operator=(const GlideLfs &input) {
+  (void)input;
+  throw GlideError("GlideLfs::operator=(const GlideLfs &input): No assignment operator!");
+  return *this;
+}
+
+void GlideLfs::push(GlideLfsNode *input) {
+  /*
+    - If "input->below" equals "top", set "top" to "input".
+    - If "input->below" does not equal "top", set "input->below" to "top".
+  */
+  input->below = top.load(std::memory_order_relaxed);
+  while(!top.compare_exchange_weak(input->below, input, std::memory_order_release, std::memory_order_relaxed));
+}
+
+GlideLfsNode * GlideLfs::pop() {
+  /*
+    - If "output" equals "top", set "top" to "output->below".
+    - If "output" does not equal "top", set "output" to "top".
+  */
+  GlideLfsNode *output(top.load(std::memory_order_relaxed));
+  do {
+    if(output == NULL) {
+      return output;
+    }
+  }
+  while(!top.compare_exchange_weak(output, output->below, std::memory_order_release, std::memory_order_relaxed));
+  output->below = NULL;
+  return output;
+}
+
+// ========================================
+
 Glide32Hasher::Glide32Hasher() : secret(SIP_HASH_SECRET_SIZE) {
   std::random_device generator;
   unsigned char * pSecret(secret.data());
